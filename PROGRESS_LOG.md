@@ -214,8 +214,57 @@ Newest entries are appended at the bottom. (Updated after every change.)
 
 ---
 
+## Entry 10 — Phase 4 Part 1 committed + pushed
+
+- `git commit -m "Phase 4 (Part 1): Game screen and session tracking"` -> pushed (580bca3).
+
+---
+
+## Entry 11 — Phase 4 (Part 2, infra): Vosk offline speech — assets, deps, wrapper, permission
+
+**What was done**
+- **Model asset (normally a manual step) downloaded automatically:** fetched the official
+  `vosk-model-small-en-us-0.15` (~39 MB zip) and unpacked its contents into
+  `app/src/main/assets/model/` (`am/ conf/ graph/ ivector/ README`, ~68 MB on disk).
+- `app/build.gradle.kts`: added `net.java.dev.jna:jna:5.13.0@aar` and the Vosk Android AAR.
+- `AndroidManifest.xml`: added `RECORD_AUDIO` permission.
+- New `utils/SpeechRecognizerManager.kt`: takes a `Context`; `initModel()` unpacks via
+  `StorageService.unpack("model","model", ...)` and builds `org.vosk.Model`; `startListening()` /
+  `stopListening()` drive `Recognizer` + `SpeechService`; implements `RecognitionListener` and parses
+  Vosk's JSON (`partial` / `text`) into a `SpeechState` StateFlow (`isReady`, `isListening`,
+  `partialText`, `resultText`, `error`). `destroy()` releases native resources.
+- `ui/game/GameScreen.kt`: requests `RECORD_AUDIO` at runtime via `rememberLauncherForActivityResult`;
+  mic FAB shows `Mic` (enabled/primary) when granted and `MicOff` (dimmed) when not, re-requesting on tap.
+  Speech is NOT yet wired into the game loop (still calls `advanceSentence()` — per plan, stop before wiring).
+
+**Challenges & fixes**
+- **Wrong Maven coordinates.** `com.alphacep:vosk-android:0.3.32` does NOT exist -> build failed
+  ("Could not find com.alphacep:vosk-android:0.3.32"). The real group id is **`com.alphacephei`**
+  (with "phei"). Verified available versions on Maven Central and switched to
+  `com.alphacephei:vosk-android:0.3.47` (latest). jna `5.13.0@aar` was correct.
+- **Working-directory drift.** A `cd /tmp` used for the model download left the shell there, so
+  `./gradlew` wasn't found. Fixed by invoking gradle with an explicit `-p <project>` path.
+- **`libjnidispatch.so` strip warning** during build — harmless (debug symbols not stripped; lib is still
+  packaged). Native JNA bridge bundled correctly.
+- **No native crash** on install/launch (the SIGSEGV risk). Confirmed clean Logcat.
+- **Could not complete the runtime mic-permission check:** by this run the Django backend was down, so the
+  app showed "Failed to connect to /10.0.2.2:8001" on onboarding and never reached the game screen. Build,
+  install, dependency resolution, and crash-free launch are all verified; the on-screen permission prompt
+  still needs a visual check once Django is running again.
+
+**Open decision**
+- The 68 MB model now lives in `assets/` (and will bloat both the APK and the git repo if committed).
+  NOT committed yet — need a call: commit it, or gitignore `assets/model/` and keep it local-only.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL (after coordinate fix); installs & launches
+without native crash.
+
+---
+
 ## Next up (not yet done)
-- Commit Phase 4 Part 1.
-- Phase 4 Part 2: integrate the offline Vosk speech engine (JNA/C libs) to replace the simulated mic
-  button — capture real speech, compute accuracy %, and collect the actual difficult words for the POST.
+- Decide whether to commit the Vosk model (repo/APK size) vs gitignore it.
+- Restart Django and visually confirm the RECORD_AUDIO permission prompt + mic enable/disable on the game screen.
+- Phase 4 Part 2 (wiring): connect `SpeechRecognizerManager` to the game loop — start listening per
+  sentence, compare recognized text to the expected sentence, compute real accuracy %, collect difficult
+  words, and send them in the session POST.
 - Build the real `lesson/{storyId}` screen (show `lifeSkillLesson`).

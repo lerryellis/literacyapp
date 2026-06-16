@@ -13,3 +13,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Vosk acoustic model — large (~68MB) binary blob, kept local only (re-download as needed)
+app/src/main/assets/model/

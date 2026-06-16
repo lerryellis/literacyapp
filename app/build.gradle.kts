@@ -46,6 +46,9 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     // ViewModel in Compose (viewModel() factory support)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
+    // Offline speech recognition (Vosk) + its JNA native bridge
+    implementation("net.java.dev.jna:jna:5.13.0@aar")
+    implementation("com.alphacephei:vosk-android:0.3.47@aar")
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
