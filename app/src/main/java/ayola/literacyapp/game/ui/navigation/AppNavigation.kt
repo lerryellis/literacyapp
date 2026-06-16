@@ -8,16 +8,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import ayola.literacyapp.game.ui.onboarding.OnboardingScreen
 import ayola.literacyapp.game.ui.onboarding.OnboardingViewModel
+import ayola.literacyapp.game.ui.storylist.StoryListScreen
+import ayola.literacyapp.game.ui.storylist.StoryListViewModel
 import ayola.literacyapp.game.utils.SessionManager
 
 object Routes {
     const val ONBOARDING = "onboarding"
     const val STORY_LIST = "story_list"
+    const val GAME = "game/{storyId}"
+    fun game(storyId: Int) = "game/$storyId"
 }
 
 @Composable
@@ -45,18 +51,33 @@ fun AppNavigation() {
         }
 
         composable(Routes.STORY_LIST) {
-            StoryListPlaceholder()
+            val context = LocalContext.current
+            val viewModel: StoryListViewModel = viewModel(
+                factory = StoryListViewModel.factory(SessionManager(context))
+            )
+            StoryListScreen(
+                viewModel = viewModel,
+                onStoryClick = { storyId -> navController.navigate(Routes.game(storyId)) }
+            )
+        }
+
+        composable(
+            route = Routes.GAME,
+            arguments = listOf(navArgument("storyId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val storyId = backStackEntry.arguments?.getInt("storyId") ?: -1
+            GamePlaceholder(storyId)
         }
     }
 }
 
-/** Temporary destination until the real story list is built. */
+/** Temporary destination until the reading game is built. */
 @Composable
-private fun StoryListPlaceholder() {
+private fun GamePlaceholder(storyId: Int) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text("Story List — coming soon")
+        Text("Game for story #$storyId — coming soon")
     }
 }

@@ -48,6 +48,8 @@ class OnboardingViewModel(
                 val student = response.body()
                 if (response.isSuccessful && student?.id != null) {
                     sessionManager.saveStudentId(student.id)
+                    // Remember the age group so the Story List can fetch age-appropriate content.
+                    sessionManager.saveAgeGroup(student.ageGroup)
                     _uiState.value = _uiState.value.copy(isLoading = false, loginSuccess = true)
                 } else {
                     _uiState.value = _uiState.value.copy(

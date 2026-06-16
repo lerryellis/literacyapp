@@ -127,6 +127,46 @@ Newest entries are appended at the bottom. (Updated after every change.)
 
 ---
 
+## Entry 6 — Phase 1 & 2 committed + pushed
+
+- `git commit -m "Phase 1 & 2: Networking and Onboarding UI"` -> pushed to `origin/main` (b482887).
+- Includes `PROGRESS_LOG.md` and `PHASE1_REPORT.md` (intentional, for hackathon tracking).
+
+---
+
+## Entry 7 — Phase 3: Dynamic Story Selection
+
+**What was done**
+- `utils/SessionManager.kt`: added `saveAgeGroup()` / `getAgeGroup()` (key `age_group`).
+- `ui/onboarding/OnboardingViewModel.kt`: now calls `saveAgeGroup(student.ageGroup)` right after
+  `saveStudentId()` on a successful login.
+- New `ui/storylist/StoryListViewModel.kt`: takes `SessionManager` (via factory); on `init` reads the
+  saved age group and calls `getStories(ageGroup)`. Exposes `StoryListUiState(isLoading, stories, error)`
+  as a `StateFlow`.
+- New `ui/storylist/StoryListScreen.kt`: Material 3. Shows `CircularProgressIndicator` while loading,
+  an error/empty message otherwise, and a `LazyColumn` of elevated `Card`s (title = headlineSmall,
+  lifeSkill = bodyMedium). Card click invokes `onStoryClick(story.id)`.
+- `ui/navigation/AppNavigation.kt`: replaced the Story List placeholder with the real screen; added a
+  typed `game/{storyId}` route (NavType.IntType) with a `GamePlaceholder`.
+
+**Live verification on emulator**
+- Re-onboarded as "Ama" / "Accra Primary" / 5-7 -> `201` student created.
+- `GET http://10.0.2.2:8001/api/stories/?age_group=5-7` -> `200 OK`, 2 stories returned and rendered as
+  cards ("Kofi Shares His Toys" / Interpersonal, "Whose Turn Is It?" / Communication).
+- Tapped first card -> navigated to "Game for story #1 — coming soon" (storyId arg passed correctly).
+
+**Challenges & fixes / observations**
+- **`content` arrives as a JSON-encoded string**, not a plain paragraph: e.g.
+  `"[\"Kofi had a big box...\", \"His friend Ama had none...\"]"`. Our `Story.content: String` deserializes
+  fine (no crash), but the future reading game must parse this string into a `List<String>` of sentences.
+  Flagged for Phase 4 — do NOT treat `content` as display-ready text.
+- The age filter works: only the two 5-7 stories came back (the backend has others for 8-10).
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL; installed & verified live on Pixel_7a.
+
+---
+
 ## Next up (not yet done)
-- Commit Phases 1-2 to the private repo.
-- Phase 3: real Story List screen consuming `GET api/stories/` filtered by saved age group.
+- Commit Phase 3.
+- Phase 4: the reading game screen — parse `content` (stringified JSON array) into sentences, time the
+  read, track accuracy + difficult words, then `POST api/sessions/`.

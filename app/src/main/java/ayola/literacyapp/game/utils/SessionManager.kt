@@ -26,6 +26,13 @@ class SessionManager(context: Context) {
         prefs.edit().remove(KEY_STUDENT_ID).apply()
     }
 
+    fun saveAgeGroup(ageGroup: String) {
+        prefs.edit().putString(KEY_AGE_GROUP, ageGroup).apply()
+    }
+
+    /** Returns the saved age group, or null if none has been stored yet. */
+    fun getAgeGroup(): String? = prefs.getString(KEY_AGE_GROUP, null)
+
     @SuppressLint("HardwareIds")
     fun getDeviceId(): String =
         Settings.Secure.getString(appContext.contentResolver, Settings.Secure.ANDROID_ID)
@@ -33,5 +40,6 @@ class SessionManager(context: Context) {
     companion object {
         private const val PREFS_NAME = "literacy_app_prefs"
         private const val KEY_STUDENT_ID = "student_id"
+        private const val KEY_AGE_GROUP = "age_group"
     }
 }
