@@ -4,13 +4,20 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
@@ -55,33 +62,33 @@ fun GameScreen(
 
     LaunchedEffect(storyId) { viewModel.loadStory(storyId) }
     LaunchedEffect(state.isFinished) { if (state.isFinished) onFinished(storyId) }
-    // Ask for the mic up front so the button is ready when the child is.
     LaunchedEffect(Unit) {
         if (!hasAudioPermission) permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
+
+    val micEnabled = hasAudioPermission && state.isSpeechEngineReady
 
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    if (hasAudioPermission) {
-                        // TODO(Part 2 wiring): start Vosk listening; for now advance the sentence.
-                        viewModel.advanceSentence()
-                    } else {
-                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    when {
+                        !hasAudioPermission -> permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        state.isSpeechEngineReady -> viewModel.onMicPressed()
                     }
                 },
-                containerColor = if (hasAudioPermission) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
+                containerColor = when {
+                    !micEnabled -> MaterialTheme.colorScheme.surfaceVariant
+                    state.isListening -> MaterialTheme.colorScheme.error      // recording
+                    else -> MaterialTheme.colorScheme.primary
                 }
             ) {
-                Icon(
-                    imageVector = if (hasAudioPermission) Icons.Filled.Mic else Icons.Filled.MicOff,
-                    contentDescription = if (hasAudioPermission) "Read this sentence" else "Microphone permission needed",
-                    modifier = Modifier.size(36.dp)
-                )
+                val icon = when {
+                    !hasAudioPermission -> Icons.Filled.MicOff
+                    state.isListening -> Icons.Filled.Stop
+                    else -> Icons.Filled.Mic
+                }
+                Icon(icon, contentDescription = "Read this sentence", modifier = Modifier.size(36.dp))
             }
         },
         floatingActionButtonPosition = FabPosition.Center
@@ -102,14 +109,40 @@ fun GameScreen(
 
                 story == null -> CircularProgressIndicator()
 
+                !state.isSpeechEngineReady -> Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(16.dp))
+                    Text("Loading Speech Engine…", style = MaterialTheme.typography.bodyLarge)
+                }
+
                 else -> {
                     val sentences = story.getSentences()
                     val sentence = sentences.getOrNull(state.currentSentenceIndex).orEmpty()
-                    Text(
-                        text = sentence,
-                        style = MaterialTheme.typography.headlineLarge,
-                        textAlign = TextAlign.Center
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = sentence,
+                            style = MaterialTheme.typography.headlineLarge,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        // Live transcription so the child sees what the app is hearing.
+                        Text(
+                            text = state.partialText,
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.height(32.dp))
+                        // Child taps Next when ready — no rushing early readers.
+                        Button(onClick = { viewModel.advanceSentence() }) {
+                            Text("Next")
+                            Spacer(Modifier.size(8.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                        }
+                    }
                 }
             }
         }

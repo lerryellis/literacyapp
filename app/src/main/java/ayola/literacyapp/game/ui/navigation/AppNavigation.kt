@@ -1,11 +1,6 @@
 package ayola.literacyapp.game.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -17,9 +12,12 @@ import ayola.literacyapp.game.ui.onboarding.OnboardingScreen
 import ayola.literacyapp.game.ui.onboarding.OnboardingViewModel
 import ayola.literacyapp.game.ui.game.GameScreen
 import ayola.literacyapp.game.ui.game.GameViewModel
+import ayola.literacyapp.game.ui.lesson.LessonScreen
+import ayola.literacyapp.game.ui.lesson.LessonViewModel
 import ayola.literacyapp.game.ui.storylist.StoryListScreen
 import ayola.literacyapp.game.ui.storylist.StoryListViewModel
 import ayola.literacyapp.game.utils.SessionManager
+import ayola.literacyapp.game.utils.SpeechRecognizerManager
 
 object Routes {
     const val ONBOARDING = "onboarding"
@@ -72,7 +70,10 @@ fun AppNavigation() {
             val storyId = backStackEntry.arguments?.getInt("storyId") ?: -1
             val context = LocalContext.current
             val viewModel: GameViewModel = viewModel(
-                factory = GameViewModel.factory(SessionManager(context))
+                factory = GameViewModel.factory(
+                    SessionManager(context),
+                    SpeechRecognizerManager(context)
+                )
             )
             GameScreen(
                 viewModel = viewModel,
@@ -91,18 +92,20 @@ fun AppNavigation() {
             arguments = listOf(navArgument("storyId") { type = NavType.IntType })
         ) { backStackEntry ->
             val storyId = backStackEntry.arguments?.getInt("storyId") ?: -1
-            LessonPlaceholder(storyId)
+            val context = LocalContext.current
+            val viewModel: LessonViewModel = viewModel(
+                factory = LessonViewModel.factory(SessionManager(context))
+            )
+            LessonScreen(
+                viewModel = viewModel,
+                storyId = storyId,
+                onBackToStories = {
+                    navController.navigate(Routes.STORY_LIST) {
+                        // Clear the game/lesson from the backstack.
+                        popUpTo(Routes.STORY_LIST) { inclusive = true }
+                    }
+                }
+            )
         }
-    }
-}
-
-/** Temporary destination until the life-skill lesson screen is built. */
-@Composable
-private fun LessonPlaceholder(storyId: Int) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Lesson for story #$storyId — coming soon")
     }
 }

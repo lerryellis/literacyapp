@@ -261,10 +261,87 @@ without native crash.
 
 ---
 
+## Entry 12 — Vosk model gitignored + Part-2 infra committed
+
+- Added `app/src/main/assets/model/` to `.gitignore` (per decision: do NOT commit the 68 MB blob —
+  kept local, re-downloadable). Confirmed it no longer appears in `git status`.
+- `git commit -m "Phase 4 (Part 2 infra): Vosk deps, RECORD_AUDIO, SpeechRecognizerManager, mic permission UI"`
+  -> pushed (1724af2).
+
+---
+
+## Entry 13 — Phase 4 (Part 2, wiring): speech graded into the game loop
+
+**What was done**
+- `ui/game/GameViewModel.kt`:
+  - Constructor now also takes `SpeechRecognizerManager`; factory updated to provide both managers.
+  - `initSpeechEngine()` calls `speechManager.initModel()` on `Dispatchers.IO`.
+  - `GameState` gained `isSpeechEngineReady`, `isListening`, `partialText`.
+  - `observeSpeech()` collects `speechManager.state`, mirrors it into `GameState`, and fires
+    `onSentenceRecognized()` once per new final result (guarded by `lastEvaluatedResult`).
+  - `evaluateReading(spoken, expected)`: lowercases + strips punctuation via regex, splits into words,
+    `accuracyPercent = matched/expected*100`, `difficultWords = expected words not spoken`. Accumulates
+    `accuracySum`, `sentencesEvaluated`, and a `linkedSetOf` of session-wide difficult words.
+  - On finish, `submitSession()` POSTs the REAL average accuracy (rounded 2 d.p.) and the master
+    difficult-words list.
+  - `onMicPressed()` toggles listening; `onCleared()` calls `speechManager.destroy()` (no native leak).
+  - Current UX: auto-advances to the next sentence as soon as a final result is graded (per the prompt).
+- `ui/game/GameScreen.kt`: shows "Loading Speech Engine…" spinner until `isSpeechEngineReady`; mic FAB
+  toggles listening (Mic / Stop / MicOff icons, red while recording); shows live `partialText` under the
+  sentence.
+- `ui/navigation/AppNavigation.kt`: game route now builds `SpeechRecognizerManager(context)` for the VM.
+
+**Challenges & fixes**
+- **Duplicate-result guard:** Vosk's `state` is a hot StateFlow holding the latest value, so a naive
+  `collect` would re-grade the same `resultText` on every emission. Added `lastEvaluatedResult` and reset
+  it when a new listen starts, so each utterance is graded exactly once.
+- **Accuracy rounding:** average accuracy rounded to 2 d.p. via `(x*100).roundToInt()/100.0` so the JSON
+  sends e.g. `83.33`, not `83.33333`.
+
+**Not yet verified at runtime (blocked):**
+- Django was down this session, so the game screen (reached only after onboarding+story-list network
+  calls) could not be opened to confirm: model unpack/init with NO native SIGSEGV, the "Loading Speech
+  Engine…" state, live partial text, and a real graded `POST /api/sessions/`.
+- Emulators have no physical mic; Vosk will run on the synthetic audio stream without crashing but will
+  likely transcribe nothing. A real device (or piped audio) is needed to see non-zero accuracy.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL.
+
+---
+
+## Entry 14 — Phase 5: manual "Next" UX + Lesson screen (front-to-back complete)
+
+**What was done**
+- **UX decision: manual "Next" button** (chosen over auto-advance — early readers pause unpredictably).
+  - `GameViewModel`: `onSentenceRecognized()` now grades + stops listening but NO LONGER auto-advances.
+    `advanceSentence()` stops listening, resets `lastEvaluatedResult`, and clears `partialText`.
+  - `GameScreen`: added a "Next ▶" Button under the live transcript that calls `advanceSentence()`.
+- New `ui/lesson/LessonViewModel.kt`: loads the story by id (age-filtered `getStories()` + filter),
+  exposes `LessonUiState(isLoading, story, error)`.
+- New `ui/lesson/LessonScreen.kt`: celebratory Material 3 finish screen — "🎉 Great reading!", the story
+  title, an elevated `primaryContainer` card showing "Today's skill: <lifeSkill>" + the `lifeSkillLesson`
+  text, and a full-width "Back to Stories" button. Scrollable for long lessons.
+- `AppNavigation`: replaced the lesson placeholder with `LessonScreen`; "Back to Stories" navigates to
+  `STORY_LIST` with `popUpTo(STORY_LIST){inclusive=true}` to clear game+lesson from the backstack.
+  Removed the now-unused placeholder + its imports.
+
+**Challenges & fixes**
+- Cleaned up dead imports (`Box`, `fillMaxSize`, `Alignment`, `Modifier`, `Text`) left behind when the
+  last placeholder was deleted, to keep the build warning-clean.
+- Used `Icons.AutoMirrored.Filled.ArrowForward` (not the deprecated `Icons.Filled.ArrowForward`) for RTL
+  correctness.
+
+**Not yet verified at runtime (blocked):** Django still down (`curl localhost:8001` -> HTTP 000), so the
+full loop (Onboarding -> Story List -> Game -> Lesson) hasn't been exercised this session. Needs Django
+up; then a manual Next walk-through will confirm navigation + a session POST, and the virtual mic will
+confirm real transcription/accuracy.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL.
+
+---
+
 ## Next up (not yet done)
-- Decide whether to commit the Vosk model (repo/APK size) vs gitignore it.
-- Restart Django and visually confirm the RECORD_AUDIO permission prompt + mic enable/disable on the game screen.
-- Phase 4 Part 2 (wiring): connect `SpeechRecognizerManager` to the game loop — start listening per
-  sentence, compare recognized text to the expected sentence, compute real accuracy %, collect difficult
-  words, and send them in the session POST.
-- Build the real `lesson/{storyId}` screen (show `lifeSkillLesson`).
+- **User action:** start Django (`python manage.py runserver 0.0.0.0:8001`) so the full loop can run.
+- Run the end-to-end loop on the emulator; with the virtual mic enabled, confirm non-zero accuracy and a
+  real `difficult_words` list in the session POST.
+- (Polish) progress indicator (sentence x of N) on the game screen; loading/disabled state on the mic.
