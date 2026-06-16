@@ -166,7 +166,56 @@ Newest entries are appended at the bottom. (Updated after every change.)
 
 ---
 
+## Entry 8 — Phase 3 committed + pushed
+
+- `git commit -m "Phase 3: Dynamic Story Selection"` -> pushed to `origin/main` (15e8ee5).
+
+---
+
+## Entry 9 — Phase 4 (Part 1): Game Screen + sentence navigation (Vosk simulated by a button)
+
+**What was done**
+- `models/Story.kt`: added `fun Story.getSentences(): List<String>` — parses the stringified-JSON
+  `content` via `Gson().fromJson(content, Array<String>::class.java)`, with a graceful fallback to a
+  single-item list if the content isn't valid JSON.
+- New `ui/game/GameViewModel.kt`: `GameState(story, currentSentenceIndex, isFinished, error)`.
+  `loadStory(storyId)` fetches stories (age-filtered), finds the matching id, records the start time
+  (`System.currentTimeMillis()`). `advanceSentence()` increments the index; when it passes the last
+  sentence it sets `isFinished`, computes `durationSeconds`, and POSTs a session
+  (accuracy hardcoded 100.0, empty difficult words for now — Vosk fills these in Part 2).
+- New `ui/game/GameScreen.kt`: shows the current sentence in `headlineLarge` (centered); a centered
+  Mic `FloatingActionButton` advances sentences; on `isFinished` it navigates to `lesson/{storyId}`.
+- `ui/navigation/AppNavigation.kt`: replaced the game placeholder with `GameScreen` (storyId arg passed
+  into the ViewModel); added a typed `lesson/{storyId}` route + `LessonPlaceholder`.
+
+**Live verification on emulator**
+- Onboarded "Yaw" (student id 9) -> opened "Kofi Shares His Toys" (id 1).
+- Game screen showed the FIRST PARSED sentence "Kofi had a big box of shiny toy cars." (NOT the raw JSON
+  array) — confirms `getSentences()` works.
+- Tapped the Mic FAB 5 times to read all sentences. On the last tap:
+  ```
+  --> POST http://10.0.2.2:8001/api/sessions/
+  {"accuracy_percent":100.0,"difficult_words":[],"duration_seconds":31,"story":1,"student":9}
+  <-- 201 Created (31ms)
+  {"id":2,"student":9,"story":1,"duration_seconds":31,...}
+  ```
+- App then navigated to "Lesson for story #1 — coming soon". Full loop confirmed.
+
+**Challenges & fixes**
+- **Mic icon not in the core icon set.** `Icons.Filled.Mic` lives in `material-icons-extended`, which
+  wasn't on the classpath. Fix: added `implementation("androidx.compose.material:material-icons-extended")`
+  (versioned by the Compose BOM). Build then succeeded.
+- **Out-of-bounds guard:** when finished, `currentSentenceIndex` equals the sentence count. The UI reads
+  the sentence with `getOrNull(index).orEmpty()` so the brief pre-navigation recomposition can't crash.
+- **Re-load guard:** `loadStory()` early-returns if the story with that id is already loaded, so screen
+  recomposition doesn't refetch or reset progress.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL; verified live on Pixel_7a.
+
+---
+
 ## Next up (not yet done)
-- Commit Phase 3.
-- Phase 4: the reading game screen — parse `content` (stringified JSON array) into sentences, time the
-  read, track accuracy + difficult words, then `POST api/sessions/`.
+- Commit Phase 4 Part 1.
+- Phase 4 Part 2: integrate the offline Vosk speech engine (JNA/C libs) to replace the simulated mic
+  button — capture real speech, compute accuracy %, and collect the actual difficult words for the POST.
+- Build the real `lesson/{storyId}` screen (show `lifeSkillLesson`).
