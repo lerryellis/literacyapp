@@ -23,9 +23,9 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val STORY_LIST = "story_list"
     const val GAME = "game/{storyId}"
-    const val LESSON = "lesson/{storyId}"
+    const val LESSON = "lesson/{storyId}/{accuracy}"
     fun game(storyId: Int) = "game/$storyId"
-    fun lesson(storyId: Int) = "lesson/$storyId"
+    fun lesson(storyId: Int, accuracy: Float) = "lesson/$storyId/$accuracy"
 }
 
 @Composable
@@ -78,8 +78,8 @@ fun AppNavigation() {
             GameScreen(
                 viewModel = viewModel,
                 storyId = storyId,
-                onFinished = { finishedId ->
-                    navController.navigate(Routes.lesson(finishedId)) {
+                onFinished = { finishedId, accuracy ->
+                    navController.navigate(Routes.lesson(finishedId, accuracy)) {
                         // Don't return to the game when leaving the lesson.
                         popUpTo(Routes.GAME) { inclusive = true }
                     }
@@ -89,9 +89,13 @@ fun AppNavigation() {
 
         composable(
             route = Routes.LESSON,
-            arguments = listOf(navArgument("storyId") { type = NavType.IntType })
+            arguments = listOf(
+                navArgument("storyId") { type = NavType.IntType },
+                navArgument("accuracy") { type = NavType.FloatType }
+            )
         ) { backStackEntry ->
             val storyId = backStackEntry.arguments?.getInt("storyId") ?: -1
+            val accuracy = backStackEntry.arguments?.getFloat("accuracy") ?: 0f
             val context = LocalContext.current
             val viewModel: LessonViewModel = viewModel(
                 factory = LessonViewModel.factory(SessionManager(context))
@@ -99,6 +103,7 @@ fun AppNavigation() {
             LessonScreen(
                 viewModel = viewModel,
                 storyId = storyId,
+                accuracy = accuracy,
                 onBackToStories = {
                     navController.navigate(Routes.STORY_LIST) {
                         // Clear the game/lesson from the backstack.

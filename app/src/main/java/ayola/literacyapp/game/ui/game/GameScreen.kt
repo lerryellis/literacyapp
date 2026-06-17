@@ -46,7 +46,7 @@ import ayola.literacyapp.game.models.getSentences
 fun GameScreen(
     viewModel: GameViewModel,
     storyId: Int,
-    onFinished: (storyId: Int) -> Unit
+    onFinished: (storyId: Int, accuracy: Float) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -63,7 +63,7 @@ fun GameScreen(
     ) { granted -> hasAudioPermission = granted }
 
     LaunchedEffect(storyId) { viewModel.loadStory(storyId) }
-    LaunchedEffect(state.isFinished) { if (state.isFinished) onFinished(storyId) }
+    LaunchedEffect(state.isFinished) { if (state.isFinished) onFinished(storyId, state.finalAccuracy) }
     LaunchedEffect(Unit) {
         if (!hasAudioPermission) permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }

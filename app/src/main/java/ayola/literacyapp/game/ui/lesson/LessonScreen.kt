@@ -23,16 +23,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 
 @Composable
 fun LessonScreen(
     viewModel: LessonViewModel,
     storyId: Int,
+    accuracy: Float,
     onBackToStories: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(storyId) { viewModel.loadStory(storyId) }
+    LaunchedEffect(storyId) { viewModel.loadStory(storyId, accuracy) }
 
     Column(
         modifier = Modifier
@@ -69,7 +71,15 @@ fun LessonScreen(
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(24.dp))
+
+                Text(
+                    text = "Reading Accuracy: ${state.accuracy.roundToInt()}%",
+                    style = MaterialTheme.typography.headlineMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+                Spacer(Modifier.height(24.dp))
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),

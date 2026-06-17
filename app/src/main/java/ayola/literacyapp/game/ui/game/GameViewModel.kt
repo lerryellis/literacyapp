@@ -23,7 +23,8 @@ data class GameState(
     val error: String? = null,
     val isSpeechEngineReady: Boolean = false,
     val isListening: Boolean = false,
-    val partialText: String = ""
+    val partialText: String = "",
+    val finalAccuracy: Float = 0f
 )
 
 class GameViewModel(
@@ -155,18 +156,23 @@ class GameViewModel(
         lastEvaluatedResult = null
 
         if (nextIndex >= sentenceCount) {
-            _state.value = current.copy(currentSentenceIndex = nextIndex, isFinished = true, partialText = "")
+            val averageAccuracy = if (sentencesEvaluated > 0) accuracySum / sentencesEvaluated else 0.0
+            val roundedAccuracy = (averageAccuracy * 100).roundToInt() / 100.0 // 2 d.p.
+            _state.value = current.copy(
+                currentSentenceIndex = nextIndex,
+                isFinished = true,
+                partialText = "",
+                finalAccuracy = roundedAccuracy.toFloat()
+            )
             val durationSeconds = ((System.currentTimeMillis() - startTimeMillis) / 1000).toInt()
-            submitSession(story, durationSeconds)
+            submitSession(story, durationSeconds, roundedAccuracy)
         } else {
             _state.value = current.copy(currentSentenceIndex = nextIndex, partialText = "")
         }
     }
 
-    private fun submitSession(story: Story, durationSeconds: Int) {
+    private fun submitSession(story: Story, durationSeconds: Int, accuracyPercent: Double) {
         val studentId = sessionManager.getStudentId() ?: return
-        val averageAccuracy =
-            if (sentencesEvaluated > 0) accuracySum / sentencesEvaluated else 0.0
         viewModelScope.launch {
             try {
                 RetrofitClient.apiService.createSession(
@@ -174,7 +180,7 @@ class GameViewModel(
                         student = studentId,
                         story = story.id,
                         durationSeconds = durationSeconds,
-                        accuracyPercent = (averageAccuracy * 100).roundToInt() / 100.0, // 2 d.p.
+                        accuracyPercent = accuracyPercent,
                         difficultWords = sessionDifficultWords.toList()
                     )
                 )

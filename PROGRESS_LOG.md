@@ -411,7 +411,32 @@ Engine…". Documented here + in `.gitignore`.
 
 ---
 
-## Next up (not yet done)
-- **Voice accuracy test (user only):** read aloud into the emulator virtual mic or a physical device;
-  confirm non-zero `accuracy_percent` and real `difficult_words` in the session POST. (I cannot speak.)
-- App is otherwise feature-complete for the hackathon demo.
+## Entry 17 — Accuracy score on the Lesson screen (gamification loop closed)
+
+**What was done**
+- `GameViewModel`: added `finalAccuracy: Float` to `GameState`; on finish it computes the rounded average
+  accuracy once and stores it in state (and passes the same value to `submitSession`, which no longer
+  recomputes — single source of truth).
+- `GameScreen`: `onFinished` is now `(storyId, accuracy) -> Unit`; fires `onFinished(storyId, finalAccuracy)`.
+- `AppNavigation`: lesson route is now `lesson/{storyId}/{accuracy}` (IntType + FloatType); game's
+  `onFinished` passes the accuracy through.
+- `LessonViewModel`: `loadStory(storyId, accuracy)` stores accuracy in `LessonUiState`.
+- `LessonScreen`: takes an `accuracy` arg and shows "Reading Accuracy: X%" (`headlineMedium`,
+  `colorScheme.tertiary`) above the life-skill card.
+
+**Verified live on emulator**
+- Full loop as "Adwoa"; Lesson screen shows "Reading Accuracy: 0%" in tertiary color above the card
+  (0% expected — drove with Next, no speech). UI scoring loop confirmed end-to-end.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL; verified live.
+
+---
+
+## Status: feature-complete for the hackathon demo
+Full pipeline verified on the emulator: Onboarding -> Story List -> Game (Vosk, progress bar, Next) ->
+session POST -> Lesson (accuracy score + life skill) -> Back to Stories.
+
+## Only remaining item (user-only)
+- **Voice accuracy test:** read a story aloud (physical device recommended); confirm a non-zero
+  `accuracy_percent` and real words in `difficult_words` (try stumbling on a word to see it captured).
+  I cannot perform this — no microphone/voice on my end.

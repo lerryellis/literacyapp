@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 data class LessonUiState(
     val isLoading: Boolean = true,
     val story: Story? = null,
+    val accuracy: Float = 0f,
     val error: String? = null
 )
 
@@ -24,24 +25,24 @@ class LessonViewModel(
     private val _uiState = MutableStateFlow(LessonUiState())
     val uiState: StateFlow<LessonUiState> = _uiState.asStateFlow()
 
-    fun loadStory(storyId: Int) {
+    fun loadStory(storyId: Int, accuracy: Float) {
         if (_uiState.value.story?.id == storyId) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null, accuracy = accuracy)
             try {
                 val ageGroup = sessionManager.getAgeGroup()
                 val response = RetrofitClient.apiService.getStories(ageGroup)
                 val story = response.body()?.firstOrNull { it.id == storyId }
                 when {
                     !response.isSuccessful ->
-                        _uiState.value = LessonUiState(isLoading = false, error = "Could not load lesson (HTTP ${response.code()}).")
+                        _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, error = "Could not load lesson (HTTP ${response.code()}).")
                     story == null ->
-                        _uiState.value = LessonUiState(isLoading = false, error = "Story not found.")
+                        _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, error = "Story not found.")
                     else ->
-                        _uiState.value = LessonUiState(isLoading = false, story = story)
+                        _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, story = story)
                 }
             } catch (e: Exception) {
-                _uiState.value = LessonUiState(isLoading = false, error = e.message ?: "Could not reach the server.")
+                _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, error = e.message ?: "Could not reach the server.")
             }
         }
     }
