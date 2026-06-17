@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,6 +23,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -93,54 +95,82 @@ fun GameScreen(
         },
         floatingActionButtonPosition = FabPosition.Center
     ) { innerPadding ->
-        Box(
+        val story = state.story
+        val sentences = story?.getSentences().orEmpty()
+        val totalSentences = sentences.size.coerceAtLeast(1)
+        val showProgress = story != null && state.isSpeechEngineReady && state.error == null
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(32.dp),
-            contentAlignment = Alignment.Center
+                .padding(innerPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val story = state.story
-            when {
-                state.error != null -> Text(
-                    text = state.error!!,
-                    color = MaterialTheme.colorScheme.error
+            if (showProgress) {
+                val currentNumber = (state.currentSentenceIndex + 1).coerceAtMost(totalSentences)
+                val progress = (currentNumber.toFloat() / totalSentences).coerceIn(0f, 1f)
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primaryContainer
                 )
+                Text(
+                    text = "Sentence $currentNumber of $totalSentences",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-                story == null -> CircularProgressIndicator()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    state.error != null -> Text(
+                        text = state.error!!,
+                        color = MaterialTheme.colorScheme.error
+                    )
 
-                !state.isSpeechEngineReady -> Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    CircularProgressIndicator()
-                    Spacer(Modifier.height(16.dp))
-                    Text("Loading Speech Engine…", style = MaterialTheme.typography.bodyLarge)
-                }
+                    story == null -> CircularProgressIndicator()
 
-                else -> {
-                    val sentences = story.getSentences()
-                    val sentence = sentences.getOrNull(state.currentSentenceIndex).orEmpty()
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = sentence,
-                            style = MaterialTheme.typography.headlineLarge,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(24.dp))
-                        // Live transcription so the child sees what the app is hearing.
-                        Text(
-                            text = state.partialText,
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.height(32.dp))
-                        // Child taps Next when ready — no rushing early readers.
-                        Button(onClick = { viewModel.advanceSentence() }) {
-                            Text("Next")
-                            Spacer(Modifier.size(8.dp))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                    !state.isSpeechEngineReady -> Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(Modifier.height(16.dp))
+                        Text("Loading Speech Engine…", style = MaterialTheme.typography.bodyLarge)
+                    }
+
+                    else -> {
+                        val sentence = sentences.getOrNull(state.currentSentenceIndex).orEmpty()
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = sentence,
+                                style = MaterialTheme.typography.headlineLarge,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(Modifier.height(24.dp))
+                            // Live transcription so the child sees what the app is hearing.
+                            Text(
+                                text = state.partialText,
+                                style = MaterialTheme.typography.titleMedium,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(32.dp))
+                            // Child taps Next when ready — no rushing early readers.
+                            Button(onClick = { viewModel.advanceSentence() }) {
+                                Text("Next")
+                                Spacer(Modifier.size(8.dp))
+                                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                            }
                         }
                     }
                 }

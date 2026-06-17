@@ -6,8 +6,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
-import org.vosk.LibVosk
-import org.vosk.LogLevel
 import org.vosk.Model
 import org.vosk.Recognizer
 import org.vosk.android.RecognitionListener
@@ -45,20 +43,18 @@ class SpeechRecognizerManager(private val context: Context) : RecognitionListene
             _state.value = _state.value.copy(isReady = true)
             return
         }
-        Log.i(TAG, "initModel(): starting StorageService.unpack of assets/model")
         try {
-            LibVosk.setLogLevel(LogLevel.INFO)
             StorageService.unpack(
                 context,
                 "model",   // source: assets/model
-                "model",   // target: <filesDir>/model
+                "model",   // target: external files dir /model
                 { unpackedModel ->
-                    Log.i(TAG, "unpack onComplete: model ready")
                     model = unpackedModel
                     _state.value = _state.value.copy(isReady = true, error = null)
                 },
                 { exception ->
-                    Log.e(TAG, "unpack onError", exception)
+                    // Surface errors that Vosk's executor would otherwise swallow silently.
+                    Log.e(TAG, "Vosk model unpack failed", exception)
                     _state.value = _state.value.copy(
                         isReady = false,
                         error = "Model failed to load: ${exception.message}"
@@ -66,9 +62,7 @@ class SpeechRecognizerManager(private val context: Context) : RecognitionListene
                 }
             )
         } catch (t: Throwable) {
-            // StorageService runs Model creation on an executor that swallows non-IO throwables;
-            // anything thrown synchronously here (e.g. native link errors) is caught and surfaced.
-            Log.e(TAG, "initModel() threw", t)
+            Log.e(TAG, "Speech init failed", t)
             _state.value = _state.value.copy(isReady = false, error = "Speech init error: ${t.message}")
         }
     }

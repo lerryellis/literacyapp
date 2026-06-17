@@ -383,8 +383,35 @@ Engine…". Documented here + in `.gitignore`.
 
 ---
 
+## Entry 16 — Polish: README, sentence progress indicator, log cleanup
+
+**What was done**
+- **README.md** created at project root: setup, flow, backend command, and a prominent section on the
+  Vosk model + the REQUIRED `uuid` file (with the explanation of the silent-hang trap).
+- **Game progress indicator:** `GameScreen.kt` restructured into a top-level Column — a
+  `LinearProgressIndicator(progress = { ... })` + "Sentence X of N" counter at the top, with the sentence
+  area in a weighted Box below. Shown only once the story is loaded and the engine is ready.
+- **Log cleanup:** in `SpeechRecognizerManager.initModel()` removed `LibVosk.setLogLevel(INFO)` (verbose
+  native logs) and the routine `Log.i` lines (+ their imports). KEPT the try/catch and a single `Log.e`
+  on the genuine failure paths — logging real failures is good practice and is exactly what guards against
+  the silent-executor-swallow trap recurring; it never fires on the happy path.
+
+**Verified live on emulator**
+- Re-ran onboarding ("Abena") -> game screen now shows the progress bar at ~1/5 and "Sentence 1 of 5"
+  above "Kofi had a big box of shiny toy cars.", with the Next button and blue mic. Model still loads
+  fine after the log cleanup.
+
+**Challenges & fixes**
+- Used the current Material3 `LinearProgressIndicator(progress = { progress }, ...)` lambda overload
+  (the `progress: Float` overload is deprecated in the BOM in use).
+- Guarded the counter with `coerceAtMost(total)` / progress `coerceIn(0f,1f)` so the brief
+  finished-state (index == size) can't render "Sentence 6 of 5" before navigation fires.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL; verified live.
+
+---
+
 ## Next up (not yet done)
-- **Voice accuracy test (user):** read aloud into the emulator's virtual mic (or a physical device) and
-  confirm a non-zero `accuracy_percent` and real words in `difficult_words`. (I cannot produce speech.)
-- (Polish) progress indicator (sentence x of N) on the game screen.
-- Consider removing/quieting the debug `Log` lines in `SpeechRecognizerManager` before release.
+- **Voice accuracy test (user only):** read aloud into the emulator virtual mic or a physical device;
+  confirm non-zero `accuracy_percent` and real `difficult_words` in the session POST. (I cannot speak.)
+- App is otherwise feature-complete for the hackathon demo.
