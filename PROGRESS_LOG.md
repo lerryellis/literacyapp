@@ -490,11 +490,29 @@ confirmed working (left in place for now; not deleted automatically).
 
 ## Status: Android app feature-complete; backend in monorepo, ready to deploy
 
-## BLOCKED — needs user (cannot be done from here)
-1. **Voice accuracy test:** read a story aloud (physical device recommended); confirm non-zero
-   `accuracy_percent` + real `difficult_words`. (No microphone/voice on my end.)
-2. **Railway deploy (browser login):** New Project → deploy the `literacyapp` repo → **set Root Directory
-   = `backend`** → Add Service → PostgreSQL (auto-injects `DATABASE_URL`). Procfile handles migrate + seed.
-   (Optional: set `DEBUG=False` + a real `SECRET_KEY` in Variables.)
-3. **After deploy:** paste the public Railway URL; then I swap `RetrofitClient.BASE_URL` to the `https://…`
-   URL and rebuild for the physical phone.
+## Entry 20 — LIVE on Railway; app pointed at production HTTPS
+
+**Deployed & verified.** Railway URL: `https://literacyapp-production-b4fe.up.railway.app/`
+- `GET /api/stories/` from the host -> `200`, returns all 3 seeded stories (Procfile `loaddata` worked
+  against the fresh Postgres). Confirms migrate + seed ran on deploy.
+- `RetrofitClient.BASE_URL` switched from `http://10.0.2.2:8001/` to the Railway HTTPS URL (kept the
+  emulator-loopback URL in a comment for local dev). Rebuilt.
+- Ran onboarding on the emulator against production:
+  ```
+  --> POST https://literacyapp-production-b4fe.up.railway.app/api/students/  <-- 201 (server: railway-hikari)
+  --> GET  .../api/stories/?age_group=5-7                                    <-- 200
+  ```
+  `railway-hikari` / `x-railway-edge` headers confirm it hit the live Postgres-backed service. Story list
+  rendered from production data. Full cloud pipeline works (no localhost involved).
+
+**Build status:** BUILD SUCCESSFUL; verified live against Railway.
+
+---
+
+## Status: FULLY DEPLOYED — Android app (HTTPS) + Django/Postgres on Railway
+
+## Only remaining item (user-only)
+- **Voice accuracy test on a physical phone:** install the debug APK on your phone (now that it uses the
+  public HTTPS URL, no local network needed), read a story aloud — deliberately stumble on a word — and
+  confirm a non-zero `accuracy_percent` + the stumbled words in `difficult_words` (visible on the Lesson
+  screen and in the Railway service logs). I cannot do this — no microphone/voice on my end.

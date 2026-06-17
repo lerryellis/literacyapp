@@ -7,8 +7,9 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
 
-    // 10.0.2.2 is the host machine's loopback as seen from the Android emulator.
-    private const val BASE_URL = "http://10.0.2.2:8001/"
+    // Production backend on Railway (HTTPS — reachable from a physical device).
+    // For local dev against Django on your Mac, use "http://10.0.2.2:8001/" (emulator loopback).
+    private const val BASE_URL = "https://literacyapp-production-b4fe.up.railway.app/"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
