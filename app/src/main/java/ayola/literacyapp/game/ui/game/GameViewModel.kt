@@ -24,6 +24,8 @@ data class GameState(
     val isSpeechEngineReady: Boolean = false,
     val isListening: Boolean = false,
     val partialText: String = "",
+    val heardText: String = "",
+    val matchConfidence: Float = 0f,   // live 0..1 match of heard text vs current sentence
     val finalAccuracy: Float = 0f
 )
 
@@ -61,10 +63,16 @@ class GameViewModel(
     private fun observeSpeech() {
         viewModelScope.launch {
             speechManager.state.collect { speech ->
+                // Live "what we heard" = the final result if present, else the in-progress partial.
+                val heard = speech.resultText.ifBlank { speech.partialText }
+                val expected = currentExpectedSentence()
+                val liveConfidence = if (expected != null) wordMatchRatio(heard, expected) else 0f
                 _state.value = _state.value.copy(
                     isSpeechEngineReady = speech.isReady,
                     isListening = speech.isListening,
                     partialText = speech.partialText,
+                    heardText = heard,
+                    matchConfidence = liveConfidence,
                     error = speech.error ?: _state.value.error
                 )
                 val result = speech.resultText
@@ -145,6 +153,18 @@ class GameViewModel(
         sessionDifficultWords.addAll(missed)
     }
 
+    private fun currentExpectedSentence(): String? =
+        _state.value.story?.getSentences()?.getOrNull(_state.value.currentSentenceIndex)
+
+    /** Fraction (0..1) of the expected words that appear in the spoken text. */
+    private fun wordMatchRatio(spokenText: String, expectedSentence: String): Float {
+        val expectedWords = normalize(expectedSentence)
+        if (expectedWords.isEmpty()) return 0f
+        val spokenWords = normalize(spokenText).toSet()
+        val matched = expectedWords.count { it in spokenWords }
+        return matched.toFloat() / expectedWords.size
+    }
+
     fun advanceSentence() {
         val current = _state.value
         val story = current.story ?: return
@@ -162,12 +182,19 @@ class GameViewModel(
                 currentSentenceIndex = nextIndex,
                 isFinished = true,
                 partialText = "",
+                heardText = "",
+                matchConfidence = 0f,
                 finalAccuracy = roundedAccuracy.toFloat()
             )
             val durationSeconds = ((System.currentTimeMillis() - startTimeMillis) / 1000).toInt()
             submitSession(story, durationSeconds, roundedAccuracy)
         } else {
-            _state.value = current.copy(currentSentenceIndex = nextIndex, partialText = "")
+            _state.value = current.copy(
+                currentSentenceIndex = nextIndex,
+                partialText = "",
+                heardText = "",
+                matchConfidence = 0f
+            )
         }
     }
 

@@ -536,9 +536,35 @@ the text — needs art assets, deferred.)
 
 ## Status: deployed + login screen restyled; remaining UI screens pending
 
+## Entry 22 — Game screen redesigned as "Story Flow" (from user's design reference)
+
+**Adopted from the provided `com.literacyapp.design` reference** (Flutter-derived), themed to OUR
+orange/teal/cream palette rather than its periwinkle/purple:
+- New `GameScreen.kt` layout: "📖 Story Flow" top bar, progress + "Sentence X of N", a peach
+  "Read this aloud:" card (big sentence), a sand "hearing" card with a listening dot + live heard text +
+  a **Confidence Meter**, a feedback banner tinted green/amber/red, a wide mic button (orange → red while
+  listening), a manual "Next" button (✅ when ≥70%), and a stats row (Done / Match%).
+- **Confidence meter** (the key element): gradient fill (green ≥70 / amber ≥50 / red) with a fixed 70%
+  pass-threshold marker; added the semantic ramp colors to `ui/theme/Color.kt`.
+- `GameViewModel`: now computes a LIVE `matchConfidence` (0..1) of heard-vs-expected words on every
+  speech emission, plus `heardText`; reuses one `wordMatchRatio()` for both the live meter and final
+  grading. Reset on advance.
+
+**NOT adopted (deliberately):** the bouncing 3D age-balls home screen — it collects a single age (5–18),
+but our backend needs name + school + age-GROUP (5-7 / 8-10) and we just shipped that login. Flagged as
+an optional separate splash. Game-screen "character with expressions beside the text" still pending art.
+
+**Verified:** built + installed; navigated login → story list → game. Verified the full Story Flow layout
+via uiautomator dump (image-screenshot reading was erroring transiently this session): all elements
+present and correct ("Read this aloud", "Match Confidence 0%", mic button, Next, stats).
+
+**Build status:** BUILD SUCCESSFUL; verified live on emulator.
+
+---
+
 ## Next up
-- Apply the playful theme to the rest: Story List (color-coded cards + skill icons), Game screen
-  (bigger mic, friendlier; later: character-with-expressions beside the text — needs art), Lesson
-  (stars scaled to accuracy + confetti).
-- **Voice accuracy test (user-only):** install on a physical phone, read aloud (stumble on a word),
-  confirm non-zero `accuracy_percent` + real `difficult_words`. I cannot do this (no mic/voice).
+- Story List: color-coded cards + per-skill icons/emoji.
+- Lesson: ⭐ stars scaled to accuracy + confetti.
+- (Optional) game character-with-expressions beside the text — needs art assets.
+- **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent` +
+  real `difficult_words`. I cannot do this (no mic/voice).

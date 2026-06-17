@@ -32,3 +32,14 @@ val SoftOutline = Color(0xFFD6C7B2)
 
 val ErrorRed = Color(0xFFD3402F)
 val OnError = Color(0xFFFFFFFF)
+
+// ---- Confidence ramp (semantic: green ≥70%, amber ≥50%, red below) ----
+val Good = Color(0xFF4CAF50)
+val GoodLight = Color(0xFF66BB6A)
+val GoodDark = Color(0xFF43A047)
+val Warn = Color(0xFFFFB300)
+val WarnLight = Color(0xFFFFCA28)
+val WarnDark = Color(0xFFFF8F00)
+val Bad = Color(0xFFF44336)
+val BadLight = Color(0xFFEF5350)
+val BadDark = Color(0xFFE53935)
