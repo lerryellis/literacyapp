@@ -183,10 +183,20 @@ fun GameScreen(
                     // "Read this aloud" — reactive buddy beside the sentence
                     val heardWords = heardWordSet(state.heardText)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        ReadingBuddy(
-                            confidence = state.matchConfidence,
-                            isListening = state.isListening
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            ReadingBuddy(
+                                confidence = state.matchConfidence,
+                                isListening = state.isListening,
+                                isStruggling = state.isStruggling
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                state.characterName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
                         Spacer(Modifier.width(12.dp))
                         Column(
                             Modifier

@@ -27,23 +27,33 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ayola.literacyapp.game.ui.theme.Good
+import ayola.literacyapp.game.ui.theme.Warn
 
 /**
  * A friendly emoji "reading buddy" that reacts live to the child's progress:
- *   😄 doing great (≥70%) · 😊 getting close (≥50%) · 👂 listening · 🙂 idle.
+ *   😄 doing great (≥70%) · 🤔 struggling · 👂 listening · 😊 getting close (≥50%) · 🙂 idle.
  * It bobs gently while listening and pops bigger when the child is reading well.
- * (Placeholder for a real animated character — swap the emoji for a Lottie/PNG set later.)
+ *
+ * PLACEHOLDER for real character art. To swap in the generated PNGs (Kofi/Ama/…):
+ *   1) drop e.g. kofi_happy/kofi_pensive/kofi_excited.png into res/drawable/
+ *   2) add: @DrawableRes fun avatarRes(character: String, expression: Expression): Int { ... }
+ *   3) replace the Text(emoji) below with
+ *      Image(painterResource(avatarRes(characterName, expression)), contentDescription = characterName)
+ * The reactive STATE (confidence / isListening / isStruggling) is already computed here, so the
+ * art swap is purely visual.
  */
 @Composable
 fun ReadingBuddy(
     confidence: Float,
     isListening: Boolean,
+    isStruggling: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val emoji = when {
         confidence >= 0.70f -> "😄"
-        confidence >= 0.50f -> "😊"
+        isStruggling -> "🤔"
         isListening -> "👂"
+        confidence >= 0.50f -> "😊"
         else -> "🙂"
     }
 
@@ -65,6 +75,7 @@ fun ReadingBuddy(
 
     val tint = when {
         confidence >= 0.70f -> Good.copy(alpha = 0.18f)
+        isStruggling -> Warn.copy(alpha = 0.18f)
         isListening -> MaterialTheme.colorScheme.primaryContainer
         else -> MaterialTheme.colorScheme.surfaceVariant
     }

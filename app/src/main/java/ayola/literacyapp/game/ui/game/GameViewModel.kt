@@ -10,6 +10,8 @@ import ayola.literacyapp.game.models.getSentences
 import ayola.literacyapp.game.utils.SessionManager
 import ayola.literacyapp.game.utils.SpeechRecognizerManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +28,8 @@ data class GameState(
     val partialText: String = "",
     val heardText: String = "",
     val matchConfidence: Float = 0f,   // live 0..1 match of heard text vs current sentence
+    val isStruggling: Boolean = false, // mic on but nothing heard for a while
+    val characterName: String = "Kofi", // age-mapped reading buddy
     val finalAccuracy: Float = 0f
 )
 
@@ -47,7 +51,12 @@ class GameViewModel(
     // Guards against processing the same Vosk final result more than once.
     private var lastEvaluatedResult: String? = null
 
+    // Flips the buddy to a "struggling" expression after prolonged silence while listening.
+    private var struggleJob: Job? = null
+
     init {
+        // Pick the age-appropriate reading buddy up front.
+        _state.value = _state.value.copy(characterName = characterFor(sessionManager.getAgeGroup()))
         observeSpeech()
         initSpeechEngine()
     }
@@ -67,14 +76,29 @@ class GameViewModel(
                 val heard = speech.resultText.ifBlank { speech.partialText }
                 val expected = currentExpectedSentence()
                 val liveConfidence = if (expected != null) wordMatchRatio(heard, expected) else 0f
+
+                // "Struggling" = mic on but nothing recognized yet; cleared the moment we hear words.
+                val canStruggle = speech.isListening && heard.isBlank()
                 _state.value = _state.value.copy(
                     isSpeechEngineReady = speech.isReady,
                     isListening = speech.isListening,
                     partialText = speech.partialText,
                     heardText = heard,
                     matchConfidence = liveConfidence,
+                    isStruggling = if (canStruggle) _state.value.isStruggling else false,
                     error = speech.error ?: _state.value.error
                 )
+                if (canStruggle) {
+                    if (struggleJob?.isActive != true) {
+                        struggleJob = viewModelScope.launch {
+                            delay(STRUGGLE_DELAY_MS)
+                            _state.value = _state.value.copy(isStruggling = true)
+                        }
+                    }
+                } else {
+                    struggleJob?.cancel()
+                }
+
                 val result = speech.resultText
                 if (result.isNotBlank() && result != lastEvaluatedResult) {
                     lastEvaluatedResult = result
@@ -174,6 +198,7 @@ class GameViewModel(
         // Reset listening state so the next sentence starts fresh.
         speechManager.stopListening()
         lastEvaluatedResult = null
+        struggleJob?.cancel()
 
         if (nextIndex >= sentenceCount) {
             val averageAccuracy = if (sentencesEvaluated > 0) accuracySum / sentencesEvaluated else 0.0
@@ -184,6 +209,7 @@ class GameViewModel(
                 partialText = "",
                 heardText = "",
                 matchConfidence = 0f,
+                isStruggling = false,
                 finalAccuracy = roundedAccuracy.toFloat()
             )
             val durationSeconds = ((System.currentTimeMillis() - startTimeMillis) / 1000).toInt()
@@ -193,7 +219,8 @@ class GameViewModel(
                 currentSentenceIndex = nextIndex,
                 partialText = "",
                 heardText = "",
-                matchConfidence = 0f
+                matchConfidence = 0f,
+                isStruggling = false
             )
         }
     }
@@ -223,12 +250,28 @@ class GameViewModel(
             .split(Regex("\\s+"))
             .filter { it.isNotBlank() }
 
+    /**
+     * Maps the saved age group to its reading-buddy character. Only "5-7" (Kofi) and "8-10" (Ama)
+     * are reachable today; the rest are wired for a future age-group expansion of onboarding + backend.
+     */
+    private fun characterFor(ageGroup: String?): String = when (ageGroup) {
+        "5-7" -> "Kofi"
+        "8-10" -> "Ama"
+        "11-13" -> "Yaw"
+        "14-15" -> "Esi"
+        "16-18" -> "Musa"
+        else -> "Kofi"
+    }
+
     override fun onCleared() {
         super.onCleared()
+        struggleJob?.cancel()
         speechManager.destroy()
     }
 
     companion object {
+        private const val STRUGGLE_DELAY_MS = 10_000L
+
         fun factory(
             sessionManager: SessionManager,
             speechManager: SpeechRecognizerManager
