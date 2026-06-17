@@ -1,10 +1,13 @@
 package ayola.literacyapp.game.utils
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
+import org.vosk.LibVosk
+import org.vosk.LogLevel
 import org.vosk.Model
 import org.vosk.Recognizer
 import org.vosk.android.RecognitionListener
@@ -42,21 +45,32 @@ class SpeechRecognizerManager(private val context: Context) : RecognitionListene
             _state.value = _state.value.copy(isReady = true)
             return
         }
-        StorageService.unpack(
-            context,
-            "model",   // source: assets/model
-            "model",   // target: <filesDir>/model
-            { unpackedModel ->
-                model = unpackedModel
-                _state.value = _state.value.copy(isReady = true, error = null)
-            },
-            { exception ->
-                _state.value = _state.value.copy(
-                    isReady = false,
-                    error = "Model failed to load: ${exception.message}"
-                )
-            }
-        )
+        Log.i(TAG, "initModel(): starting StorageService.unpack of assets/model")
+        try {
+            LibVosk.setLogLevel(LogLevel.INFO)
+            StorageService.unpack(
+                context,
+                "model",   // source: assets/model
+                "model",   // target: <filesDir>/model
+                { unpackedModel ->
+                    Log.i(TAG, "unpack onComplete: model ready")
+                    model = unpackedModel
+                    _state.value = _state.value.copy(isReady = true, error = null)
+                },
+                { exception ->
+                    Log.e(TAG, "unpack onError", exception)
+                    _state.value = _state.value.copy(
+                        isReady = false,
+                        error = "Model failed to load: ${exception.message}"
+                    )
+                }
+            )
+        } catch (t: Throwable) {
+            // StorageService runs Model creation on an executor that swallows non-IO throwables;
+            // anything thrown synchronously here (e.g. native link errors) is caught and surfaced.
+            Log.e(TAG, "initModel() threw", t)
+            _state.value = _state.value.copy(isReady = false, error = "Speech init error: ${t.message}")
+        }
     }
 
     /** Opens the microphone and begins streaming audio into the recognizer. */
@@ -132,6 +146,7 @@ class SpeechRecognizerManager(private val context: Context) : RecognitionListene
         }
 
     companion object {
+        private const val TAG = "SpeechRecognizerMgr"
         // Vosk small models are trained at 16 kHz mono.
         private const val SAMPLE_RATE = 16000.0f
     }

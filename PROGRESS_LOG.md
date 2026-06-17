@@ -340,8 +340,51 @@ confirm real transcription/accuracy.
 
 ---
 
+## Entry 15 — FULL END-TO-END LOOP VERIFIED on emulator (Django up)
+
+**Result: the entire pipeline works.** Onboarding -> Story List -> Game (Vosk model loads, "Next" button)
+-> session POST `201` -> Lesson screen (life-skill card) -> Back to Stories (backstack cleared).
+
+**Two real bugs caught and fixed during this run:**
+
+1. **Stale APK — I was testing an old build.** After the Phase 4-wiring and Phase 5 code changes I had run
+   `assembleDebug` but NOT `installDebug`, so the emulator was still running an older APK (no "Next"
+   button; the old auto-advance behaviour made the sentence jump on its own). Fix: always `installDebug`
+   before a runtime test. Re-installing showed the correct Phase 5 UI.
+
+2. **Vosk model missing its `uuid` file (the real blocker).** `StorageService.unpack` was hanging on
+   "Loading Speech Engine…" forever — no `files/model`, no logs. The executor inside `unpack` SWALLOWS
+   exceptions, so nothing surfaced. Added `Log` + `LibVosk.setLogLevel(INFO)` + a try/catch in
+   `SpeechRecognizerManager.initModel()`, which revealed:
+   `java.io.FileNotFoundException: model/uuid at StorageService.sync(StorageService.java:76)`.
+   The generic `vosk-model-small-en-us-0.15` zip from the website does NOT include the `uuid` file that
+   Vosk's Android `sync()` requires to version the copied model. Fix: created
+   `app/src/main/assets/model/uuid` (contents: the model name). After that, VoskAPI loaded the model
+   (`unpack onComplete: model ready`) and the game screen became interactive.
+   - NOTE: the model unpacks to the EXTERNAL files dir
+     (`/storage/emulated/0/Android/data/<pkg>/files/model/model`), which is why `run-as ls files/model`
+     (internal) showed nothing — that was a red herring, not a failure.
+
+**Verified live (Logcat `okhttp`):**
+```
+--> POST http://10.0.2.2:8001/api/sessions/
+{"accuracy_percent":0.0,"difficult_words":[],"duration_seconds":886,"story":1,"student":10}
+<-- 201 Created
+{"id":3,"student":10,"story":1,"duration_seconds":886,"accuracy_percent":0.0,...}
+```
+(accuracy 0.0 / empty difficult_words is EXPECTED — I drove the loop with the "Next" button and cannot
+speak into the mic. duration 886s reflects debugging time, not a real read.)
+
+**⚠️ IMPORTANT for a fresh clone:** the model dir is gitignored, so anyone re-downloading the Vosk model
+MUST also create `app/src/main/assets/model/uuid` (any short string), or the app hangs on "Loading Speech
+Engine…". Documented here + in `.gitignore`.
+
+**Build status:** installs & runs; full loop green.
+
+---
+
 ## Next up (not yet done)
-- **User action:** start Django (`python manage.py runserver 0.0.0.0:8001`) so the full loop can run.
-- Run the end-to-end loop on the emulator; with the virtual mic enabled, confirm non-zero accuracy and a
-  real `difficult_words` list in the session POST.
-- (Polish) progress indicator (sentence x of N) on the game screen; loading/disabled state on the mic.
+- **Voice accuracy test (user):** read aloud into the emulator's virtual mic (or a physical device) and
+  confirm a non-zero `accuracy_percent` and real words in `difficult_words`. (I cannot produce speech.)
+- (Polish) progress indicator (sentence x of N) on the game screen.
+- Consider removing/quieting the debug `Log` lines in `SpeechRecognizerManager` before release.

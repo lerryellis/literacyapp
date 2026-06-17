@@ -14,5 +14,8 @@
 .cxx
 local.properties
 
-# Vosk acoustic model — large (~68MB) binary blob, kept local only (re-download as needed)
+# Vosk acoustic model — large (~68MB) binary blob, kept local only.
+# To restore: download vosk-model-small-en-us, unzip its CONTENTS into app/src/main/assets/model/,
+# then create app/src/main/assets/model/uuid (any short string) — Vosk's StorageService.unpack
+# REQUIRES a uuid file or it hangs silently on "Loading Speech Engine...".
 app/src/main/assets/model/
