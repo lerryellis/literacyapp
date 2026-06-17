@@ -1,10 +1,69 @@
 import json
 
+from django import forms
 from django.contrib import admin
 from django.db.models import Avg, Count
 from django.utils.html import format_html
 
 from .models import Student, Story, Session
+
+
+# Age bands the Android app filters by (?age_group=). Keep these in sync with
+# the app so a typo here can't hide a story from learners.
+AGE_GROUP_CHOICES = [
+    ('5-7', 'Explorers (5-7)'),
+    ('8-10', 'Builders (8-10)'),
+    ('11-13', 'Navigators (11-13)'),
+    ('14-15', 'Leaders (14-15)'),
+    ('16-18', 'Changemakers (16-18)'),
+]
+
+
+class StoryAdminForm(forms.ModelForm):
+    """Let admins write a story naturally (one sentence per line) instead of
+    hand-typing the JSON array the app consumes.
+
+    The Android app reads `content` as a JSON array of sentences and shows one
+    sentence per read-aloud step (see app's Story.kt). This form hides that:
+    you type plain lines, we serialize to JSON on save and decode back on edit.
+    """
+
+    sentences = forms.CharField(
+        label='Story sentences',
+        widget=forms.Textarea(attrs={'rows': 12, 'style': 'width: 90%; font-size: 14px;'}),
+        help_text=(
+            'Write the story with ONE SENTENCE PER LINE. Each line becomes a '
+            'single read-aloud step in the app. Blank lines are ignored.'
+        ),
+    )
+    age_group = forms.ChoiceField(choices=AGE_GROUP_CHOICES)
+
+    class Meta:
+        model = Story
+        # `content` is intentionally excluded — it's derived from `sentences`.
+        fields = ['title', 'age_group', 'life_skill', 'life_skill_lesson']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # On edit, decode the stored JSON back into one-sentence-per-line text.
+        instance = getattr(self, 'instance', None)
+        if instance and instance.pk and instance.content:
+            try:
+                parts = json.loads(instance.content)
+                if isinstance(parts, list):
+                    self.fields['sentences'].initial = '\n'.join(str(p) for p in parts)
+                else:
+                    self.fields['sentences'].initial = instance.content
+            except (ValueError, TypeError):
+                self.fields['sentences'].initial = instance.content
+
+    def save(self, commit=True):
+        story = super().save(commit=False)
+        lines = [ln.strip() for ln in self.cleaned_data['sentences'].splitlines() if ln.strip()]
+        story.content = json.dumps(lines, ensure_ascii=False)
+        if commit:
+            story.save()
+        return story
 
 
 def _badge(label, bg, fg="white"):
@@ -69,10 +128,24 @@ class StudentAdmin(admin.ModelAdmin):
 
 @admin.register(Story)
 class StoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'age_group', 'life_skill', 'word_count', 'times_read', 'created_at')
+    form = StoryAdminForm
+    list_display = ('id', 'title', 'age_group', 'life_skill', 'word_count', 'sentence_count', 'times_read', 'created_at')
     list_filter = ('age_group', 'life_skill')
     search_fields = ('title', 'life_skill')
     ordering = ('-created_at',)
+    fieldsets = (
+        (None, {'fields': ('title', 'age_group')}),
+        ('Story', {'fields': ('sentences',)}),
+        ('Life skill', {'fields': ('life_skill', 'life_skill_lesson')}),
+    )
+
+    @admin.display(description='Sentences')
+    def sentence_count(self, obj):
+        try:
+            parts = json.loads(obj.content)
+            return len(parts) if isinstance(parts, list) else 1
+        except (ValueError, TypeError):
+            return 1 if obj.content else 0
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(_times_read=Count('sessions'))
