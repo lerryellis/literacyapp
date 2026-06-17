@@ -45,7 +45,7 @@ fun OnboardingScreen(
 
     var name by remember { mutableStateOf("") }
     var school by remember { mutableStateOf("") }
-    val ageGroups = listOf("5-7", "8-10")
+    val ageGroups = listOf("5-7", "8-10", "11-13", "14-15", "16-18")
     var selectedAgeGroup by remember { mutableStateOf(ageGroups.first()) }
 
     LaunchedEffect(state.loginSuccess) { if (state.loginSuccess) onLoginSuccess() }
@@ -105,16 +105,16 @@ fun OnboardingScreen(
                     .padding(start = 4.dp)
             )
             Spacer(Modifier.height(12.dp))
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ageGroups.forEach { group ->
                     AgePill(
                         label = group,
                         selected = group == selectedAgeGroup,
                         onClick = { selectedAgeGroup = group },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
@@ -168,13 +168,10 @@ private fun AgePill(
         else MaterialTheme.colorScheme.secondaryContainer,
         contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
         else MaterialTheme.colorScheme.onSecondaryContainer,
-        modifier = modifier.height(76.dp)
+        modifier = modifier.height(58.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(label, style = MaterialTheme.typography.headlineSmall)
-                Text("years", style = MaterialTheme.typography.bodyMedium)
-            }
+            Text("Ages $label", style = MaterialTheme.typography.titleMedium)
         }
     }
 }

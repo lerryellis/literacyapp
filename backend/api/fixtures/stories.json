@@ -37,5 +37,83 @@
       "created_at": "2026-06-16T09:00:00Z",
       "updated_at": "2026-06-16T09:00:00Z"
     }
+  },
+  {
+    "model": "api.story",
+    "pk": 4,
+    "fields": {
+      "title": "Building the Science Bridge",
+      "age_group": "11-13",
+      "content": "[\"Yaw's class entered the school science fair as a team.\", \"At first, everyone wanted to build their own separate design.\", \"Yaw suggested they combine the best idea from each person.\", \"They shared tools, listened carefully, and fixed mistakes together.\", \"Their model bridge held the most weight and won first prize.\"]",
+      "life_skill": "Teamwork",
+      "life_skill_lesson": "When we combine everyone's strengths and listen to one another, a team can achieve far more than any single person alone.",
+      "created_at": "2026-06-16T09:00:00Z",
+      "updated_at": "2026-06-16T09:00:00Z"
+    }
+  },
+  {
+    "model": "api.story",
+    "pk": 5,
+    "fields": {
+      "title": "The Case of the Quiet Classroom",
+      "age_group": "11-13",
+      "content": "[\"The class hamster had escaped from its cage overnight.\", \"Instead of guessing wildly, Yaw looked for real clues.\", \"He noticed tiny footprints leading toward the warm heater.\", \"He followed the trail calmly and found the hamster asleep.\", \"Thinking step by step solved the mystery faster than panic.\"]",
+      "life_skill": "Critical Thinking",
+      "life_skill_lesson": "Looking carefully at the evidence and reasoning step by step helps us solve problems instead of just guessing.",
+      "created_at": "2026-06-16T09:00:00Z",
+      "updated_at": "2026-06-16T09:00:00Z"
+    }
+  },
+  {
+    "model": "api.story",
+    "pk": 6,
+    "fields": {
+      "title": "Esi Leads the Clean-Up",
+      "age_group": "14-15",
+      "content": "[\"The community park was covered in litter after the weekend.\", \"Esi did not wait to be told what to do.\", \"She organised her friends into small groups with clear jobs.\", \"She thanked each person and kept everyone encouraged.\", \"By evening the park was clean, and the whole team felt proud.\"]",
+      "life_skill": "Leadership",
+      "life_skill_lesson": "A good leader takes initiative, gives others a clear role, and keeps the team encouraged until the work is finished.",
+      "created_at": "2026-06-16T09:00:00Z",
+      "updated_at": "2026-06-16T09:00:00Z"
+    }
+  },
+  {
+    "model": "api.story",
+    "pk": 7,
+    "fields": {
+      "title": "Planning the Big Week",
+      "age_group": "14-15",
+      "content": "[\"Esi had a science test and a football final in the same week.\", \"She wrote a simple plan that divided her time each evening.\", \"She studied first, then practised, and rested before bed.\", \"When distractions came, she remembered her goals and kept going.\", \"She passed her test and played her best game too.\"]",
+      "life_skill": "Time Management",
+      "life_skill_lesson": "Planning our time and tackling the most important tasks first lets us reach several goals without feeling overwhelmed.",
+      "created_at": "2026-06-16T09:00:00Z",
+      "updated_at": "2026-06-16T09:00:00Z"
+    }
+  },
+  {
+    "model": "api.story",
+    "pk": 8,
+    "fields": {
+      "title": "Musa's Promise",
+      "age_group": "16-18",
+      "content": "[\"Musa found a wallet full of money on the crowded bus.\", \"No one was watching, and he could easily have kept it.\", \"He remembered the kind of person he truly wanted to be.\", \"He handed the wallet to the driver and described the owner.\", \"The grateful owner thanked him, and Musa felt at peace.\"]",
+      "life_skill": "Integrity",
+      "life_skill_lesson": "Integrity means doing the right thing even when no one is watching, because our character matters more than any reward.",
+      "created_at": "2026-06-16T09:00:00Z",
+      "updated_at": "2026-06-16T09:00:00Z"
+    }
+  },
+  {
+    "model": "api.story",
+    "pk": 9,
+    "fields": {
+      "title": "A Voice for Change",
+      "age_group": "16-18",
+      "content": "[\"Musa noticed his neighbourhood had no safe place to study.\", \"He could have simply complained and done nothing more.\", \"Instead he gathered ideas and spoke calmly to the local council.\", \"He listened to others and proposed a small, realistic plan.\", \"A quiet study room opened, and many students benefited.\"]",
+      "life_skill": "Civic Responsibility",
+      "life_skill_lesson": "When we notice a problem, taking responsible action and speaking up respectfully can create real change for our whole community.",
+      "created_at": "2026-06-16T09:00:00Z",
+      "updated_at": "2026-06-16T09:00:00Z"
+    }
   }
 ]
