@@ -51,6 +51,8 @@ CSRF_TRUSTED_ORIGINS = [
 # Application definition
 
 INSTALLED_APPS = [
+    # Jazzmin must come before django.contrib.admin to theme the admin.
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -157,3 +159,41 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # https://github.com/adamchainz/django-cors-headers
 # Allow all origins for local testing only — tighten before production.
 CORS_ALLOW_ALL_ORIGINS = True
+
+
+# Jazzmin admin theme
+# https://django-jazzmin.readthedocs.io/configuration/
+JAZZMIN_SETTINGS = {
+    "site_title": "LiteracyApp Admin",
+    "site_header": "LiteracyApp",
+    "site_brand": "LiteracyApp",
+    "welcome_sign": "Welcome to the LiteracyApp dashboard",
+    "copyright": "LiteracyApp",
+    # Search bar over these models in the top nav.
+    "search_model": ["api.Student", "api.Story", "api.Session"],
+    # Sidebar grouping/order.
+    "order_with_respect_to": ["api", "api.Story", "api.Student", "api.Session", "auth"],
+    # FontAwesome icons per model (matches the look of the old React sidebar).
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+        "api.Student": "fas fa-user-graduate",
+        "api.Story": "fas fa-book-open",
+        "api.Session": "fas fa-microphone",
+    },
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-circle",
+    "related_modal_active": True,
+    "changeform_format": "horizontal_tabs",
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "default",
+    "navbar": "navbar-dark",
+    "sidebar": "sidebar-dark-primary",
+    "brand_colour": "navbar-indigo",
+    "accent": "accent-indigo",
+    "sidebar_nav_flat_style": True,
+    "actions_sticky_top": True,
+}
