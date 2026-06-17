@@ -511,8 +511,34 @@ confirmed working (left in place for now; not deleted automatically).
 
 ## Status: FULLY DEPLOYED — Android app (HTTPS) + Django/Postgres on Railway
 
-## Only remaining item (user-only)
-- **Voice accuracy test on a physical phone:** install the debug APK on your phone (now that it uses the
-  public HTTPS URL, no local network needed), read a story aloud — deliberately stumble on a word — and
-  confirm a non-zero `accuracy_percent` + the stumbled words in `difficult_words` (visible on the Lesson
-  screen and in the Railway service logs). I cannot do this — no microphone/voice on my end.
+## Entry 21 — UI refresh (playful kid-friendly theme) + login screen redesign
+
+**Direction chosen by user:** "Playful & kid-friendly" — sunny orange + teal + cream. Starting with the
+login (onboarding) page first. (Game screen will later show a character with different expressions beside
+the text — needs art assets, deferred.)
+
+**What was done**
+- New theme palette `ui/theme/Color.kt`: sunny orange primary, teal secondary, grape tertiary, warm cream
+  background/surface, sand variant, soft outline.
+- `ui/theme/Theme.kt`: single consistent light scheme — REMOVED dynamic color + dark mode so the playful
+  palette is identical on every device. `LiteracyAppTheme` is now just `(content)`.
+- `ui/theme/Type.kt`: large, bold, high-contrast type for early readers (display 40 / headlineLarge 34 /
+  bodyLarge 18, etc.).
+- `ui/onboarding/OnboardingScreen.kt` redesigned: 📚 header, big "Let's Read!" title, rounded text fields,
+  two large tappable age "pills" (selected = orange, unselected = mint) replacing radio buttons, a big
+  rounded "Start Reading 🚀" button; scrollable for the keyboard.
+
+**Verified live:** rebuilt + installed; login screen renders the new playful look correctly on the emulator.
+
+**Build status:** BUILD SUCCESSFUL.
+
+---
+
+## Status: deployed + login screen restyled; remaining UI screens pending
+
+## Next up
+- Apply the playful theme to the rest: Story List (color-coded cards + skill icons), Game screen
+  (bigger mic, friendlier; later: character-with-expressions beside the text — needs art), Lesson
+  (stars scaled to accuracy + confetti).
+- **Voice accuracy test (user-only):** install on a physical phone, read aloud (stumble on a word),
+  confirm non-zero `accuracy_percent` + real `difficult_words`. I cannot do this (no mic/voice).
