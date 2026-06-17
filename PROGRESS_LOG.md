@@ -464,14 +464,37 @@ fixture `api/fixtures/stories.json` (3 stories) is the reproducible seed, so the
 
 ---
 
-## Status: Android app feature-complete; backend deploy in progress
+## Entry 19 — Backend moved INTO the monorepo (decision: single repo)
+
+**Decision:** the Django backend now lives inside the Android repo at `LiteracyApp/backend/` (monorepo),
+instead of a separate repo. Reasons: one repo/history/PROGRESS_LOG for a solo hackathon; frontend +
+API contract change together; no second GitHub repo to manage.
+
+**What was done**
+- `rsync`'d `~/Documents/GitHub/literacyappBackend/` → `LiteracyApp/backend/`, EXCLUDING `venv/`,
+  `.git/`, `__pycache__/`, `*.pyc`, `db.sqlite3`, `staticfiles/`.
+- The Django project's own `.gitignore` came along as a NESTED gitignore (`backend/.gitignore`), so its
+  Python/venv/sqlite excludes apply within `backend/` without touching the Android root `.gitignore`.
+- Committed under the existing `github.com/lerryellis/literacyapp` repo.
+
+**Local-dev note:** the canonical backend location is now `LiteracyApp/backend/`. A venv was NOT copied —
+recreate it there for local runs (`python -m venv venv && venv/bin/pip install -r requirements.txt`), and
+run `python manage.py runserver 0.0.0.0:8001` from `LiteracyApp/backend/`. The OLD
+`~/Documents/GitHub/literacyappBackend/` folder is now superseded — safe to delete once the monorepo is
+confirmed working (left in place for now; not deleted automatically).
+
+**Railway:** deploy the existing `literacyapp` repo with **Root Directory = `backend`** (so it finds
+`backend/Procfile`, `requirements.txt`, `manage.py`). No new GitHub repo needed.
+
+---
+
+## Status: Android app feature-complete; backend in monorepo, ready to deploy
 
 ## BLOCKED — needs user (cannot be done from here)
 1. **Voice accuracy test:** read a story aloud (physical device recommended); confirm non-zero
    `accuracy_percent` + real `difficult_words`. (No microphone/voice on my end.)
-2. **GitHub repo for the backend:** the backend has no remote and `gh` CLI isn't installed. User must
-   create an empty GitHub repo (e.g. `literacyappBackend`); then I can add the remote + push.
-3. **Railway deploy:** New Project → deploy backend repo → add PostgreSQL (auto-injects `DATABASE_URL`).
-   Browser login required — user only.
-4. **After deploy:** user pastes the public Railway URL; then I swap `RetrofitClient.BASE_URL` to the
-   `https://…` URL and rebuild for the physical phone.
+2. **Railway deploy (browser login):** New Project → deploy the `literacyapp` repo → **set Root Directory
+   = `backend`** → Add Service → PostgreSQL (auto-injects `DATABASE_URL`). Procfile handles migrate + seed.
+   (Optional: set `DEBUG=False` + a real `SECRET_KEY` in Variables.)
+3. **After deploy:** paste the public Railway URL; then I swap `RetrofitClient.BASE_URL` to the `https://…`
+   URL and rebuild for the physical phone.

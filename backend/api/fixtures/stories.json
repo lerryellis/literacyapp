@@ -1,0 +1,41 @@
+[
+  {
+    "model": "api.story",
+    "pk": 1,
+    "fields": {
+      "title": "Kofi Shares His Toys",
+      "age_group": "5-7",
+      "content": "[\"Kofi had a big box of shiny toy cars.\", \"His friend Ama had none to play with.\", \"Kofi felt happy when he gave Ama a red car.\", \"They raced their cars together all afternoon.\", \"Sharing made playtime twice as fun!\"]",
+      "life_skill": "Interpersonal",
+      "life_skill_lesson": "Sharing what we have helps us make friends and brings joy to everyone.",
+      "created_at": "2026-06-16T09:00:00Z",
+      "updated_at": "2026-06-16T09:00:00Z"
+    }
+  },
+  {
+    "model": "api.story",
+    "pk": 2,
+    "fields": {
+      "title": "Ama and the Soapy Bubbles",
+      "age_group": "8-10",
+      "content": "[\"Ama came inside after playing in the garden.\", \"Her hands were covered in dirt and germs.\", \"She turned on the tap and rubbed soap until it bubbled.\", \"She scrubbed for as long as it takes to sing a song.\", \"Clean hands kept Ama healthy and strong.\"]",
+      "life_skill": "Self-awareness",
+      "life_skill_lesson": "Knowing when to wash our hands keeps our bodies healthy and safe.",
+      "created_at": "2026-06-16T09:00:00Z",
+      "updated_at": "2026-06-16T09:00:00Z"
+    }
+  },
+  {
+    "model": "api.story",
+    "pk": 3,
+    "fields": {
+      "title": "Whose Turn Is It?",
+      "age_group": "5-7",
+      "content": "[\"The children lined up to ride the swing.\", \"Little Esi wanted to go first, first, first!\", \"Their teacher showed them how to take turns.\", \"Esi waited and cheered while her friend swung high.\", \"When her turn came, everyone cheered for her too.\"]",
+      "life_skill": "Communication",
+      "life_skill_lesson": "Taking turns and waiting patiently lets everyone have a fair chance to play.",
+      "created_at": "2026-06-16T09:00:00Z",
+      "updated_at": "2026-06-16T09:00:00Z"
+    }
+  }
+]
