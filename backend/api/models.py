@@ -59,6 +59,7 @@ class Story(models.Model):
     content = models.TextField()
     life_skill = models.CharField(max_length=255)
     life_skill_lesson = models.TextField()
+    difficulty_level = models.CharField(max_length=20, default="Beginner", blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

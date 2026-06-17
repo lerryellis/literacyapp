@@ -92,6 +92,7 @@ class StorySerializer(serializers.ModelSerializer):
             "content",
             "life_skill",
             "life_skill_lesson",
+            "difficulty_level",
             "created_at",
             "updated_at",
         ]

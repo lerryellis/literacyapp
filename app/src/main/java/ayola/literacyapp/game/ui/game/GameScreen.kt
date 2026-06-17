@@ -4,8 +4,18 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -48,9 +58,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import ayola.literacyapp.game.models.getSentences
@@ -99,6 +114,25 @@ fun GameScreen(
         if (!hasAudioPermission) permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
 
+    // Success chime the first time confidence crosses the pass threshold on each sentence.
+    val ding = rememberDing()
+    var dinged by remember(state.currentSentenceIndex) { mutableStateOf(false) }
+    LaunchedEffect(state.matchConfidence, state.currentSentenceIndex) {
+        if (state.matchConfidence >= PASS_THRESHOLD && !dinged) {
+            dinged = true
+            ding()
+        }
+    }
+
+    // Gentle pulse on the mic while listening.
+    val micInfinite = rememberInfiniteTransition(label = "mic")
+    val micPulse by micInfinite.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(tween(520), RepeatMode.Reverse),
+        label = "micPulse"
+    )
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -120,7 +154,6 @@ fun GameScreen(
             !state.isSpeechEngineReady -> CenterLoading("Loading Speech Engine…", innerPadding)
             else -> {
                 val currentNumber = (state.currentSentenceIndex + 1).coerceAtMost(totalSentences)
-                val sentence = sentences.getOrNull(state.currentSentenceIndex).orEmpty()
                 val progress = (currentNumber.toFloat() / totalSentences).coerceIn(0f, 1f)
 
                 Column(
@@ -147,25 +180,43 @@ fun GameScreen(
                     )
                     Spacer(Modifier.height(20.dp))
 
-                    // "Read this aloud" card
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(16.dp))
-                            .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp))
-                            .padding(20.dp)
-                    ) {
-                        Text(
-                            "Read this aloud:",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    // "Read this aloud" — reactive buddy beside the sentence
+                    val heardWords = heardWordSet(state.heardText)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ReadingBuddy(
+                            confidence = state.matchConfidence,
+                            isListening = state.isListening
                         )
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            sentence,
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(16.dp))
+                                .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp))
+                                .padding(20.dp)
+                        ) {
+                            Text(
+                                "Read this aloud:",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            // Swoosh between sentences; words light up green as they're recognized.
+                            AnimatedContent(
+                                targetState = state.currentSentenceIndex,
+                                transitionSpec = {
+                                    (slideInHorizontally { it / 2 } + fadeIn()) togetherWith
+                                            (slideOutHorizontally { -it / 2 } + fadeOut())
+                                },
+                                label = "sentence"
+                            ) { idx ->
+                                Text(
+                                    text = highlightSentence(sentences.getOrNull(idx).orEmpty(), heardWords),
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
                     }
                     Spacer(Modifier.height(16.dp))
 
@@ -234,7 +285,13 @@ fun GameScreen(
                             contentColor = Color.White
                         ),
                         contentPadding = PaddingValues(vertical = 16.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                val s = if (state.isListening) micPulse else 1f
+                                scaleX = s
+                                scaleY = s
+                            }
                     ) {
                         Text(
                             when {
@@ -347,6 +404,24 @@ private fun ConfidenceMeter(confidence: Float) {
         }
     }
 }
+
+private fun heardWordSet(heard: String): Set<String> =
+    heard.lowercase().split(Regex("[^a-z0-9]+")).filter { it.isNotBlank() }.toSet()
+
+/** Highlights (green + bold) each expected word that has been recognized so far. */
+private fun highlightSentence(sentence: String, heard: Set<String>): AnnotatedString =
+    buildAnnotatedString {
+        val tokens = sentence.split(" ")
+        tokens.forEachIndexed { i, tok ->
+            val norm = tok.lowercase().filter { it.isLetterOrDigit() }
+            if (norm.isNotEmpty() && norm in heard) {
+                withStyle(SpanStyle(color = Good, fontWeight = FontWeight.Bold)) { append(tok) }
+            } else {
+                append(tok)
+            }
+            if (i != tokens.lastIndex) append(" ")
+        }
+    }
 
 private fun feedbackFor(confidence: Float, isListening: Boolean): String = when {
     confidence >= 0.70f -> "✅ Great reading! Tap Next"

@@ -562,9 +562,35 @@ present and correct ("Read this aloud", "Match Confidence 0%", mic button, Next,
 
 ---
 
+## Entry 23 — Game screen delight: live word highlighting, reactive buddy, motion, ding
+
+**Added (all asset-free, themed):**
+- **Reactive "Reading Buddy"** (`ui/game/ReadingBuddy.kt`): emoji that reacts to live confidence —
+  😄 ≥70% / 😊 ≥50% / 👂 listening / 🙂 idle. Gentle infinite bob; pops bigger when reading well; tinted
+  circle background. Sits BESIDE the sentence (the "character beside the text" idea, placeholder art).
+- **Live word highlighting:** each expected word turns green+bold the moment Vosk recognizes it
+  (`highlightSentence()` builds an AnnotatedString from `heardText`).
+- **Swoosh:** `AnimatedContent` slides+fades the sentence on advance.
+- **Mic pulse:** the mic button gently pulses (infinite scale) while listening.
+- **Ding:** `rememberDing()` uses the system `ToneGenerator` (no audio asset) to chime once when
+  confidence first crosses 70% per sentence.
+
+**Verified:** built + installed; navigated to the game screen; uiautomator dump confirms the buddy (🙂)
+and all elements render with no crash. NOTE: image-screenshot reading was still erroring this session, so
+the MOTION quality (bob/pulse/swoosh) and the green-highlight effect were NOT visually verified by me —
+needs an eyeball on the emulator/device.
+
+**Upgrade path (needs user):** swap the emoji buddy for real art — a **Lottie `.json`** (add
+`com.airbnb.android:lottie-compose`) or a **PNG set per expression**. Also an optional custom "ding"
+`.ogg`/`.wav` instead of the system tone.
+
+**Build status:** BUILD SUCCESSFUL.
+
+---
+
 ## Next up
 - Story List: color-coded cards + per-skill icons/emoji.
 - Lesson: ⭐ stars scaled to accuracy + confetti.
-- (Optional) game character-with-expressions beside the text — needs art assets.
+- Swap reading-buddy emoji for real character art (Lottie/PNG) when assets are provided.
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent` +
   real `difficult_words`. I cannot do this (no mic/voice).

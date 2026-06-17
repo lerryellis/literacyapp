@@ -18,6 +18,16 @@ AGE_GROUP_CHOICES = [
     ('16-18', 'Changemakers (16-18)'),
 ]
 
+LIFE_SKILL_CHOICES = [(s, s) for s in [
+    'Self-awareness',
+    'Critical thinking',
+    'Problem solving + Decision making',
+    'Communication + Interpersonal',
+    'Coping with stress',
+]]
+
+DIFFICULTY_CHOICES = [(d, d) for d in ['Beginner', 'Intermediate', 'Advanced']]
+
 
 class StoryAdminForm(forms.ModelForm):
     """Let admins write a story naturally (one sentence per line) instead of
@@ -37,16 +47,26 @@ class StoryAdminForm(forms.ModelForm):
         ),
     )
     age_group = forms.ChoiceField(choices=AGE_GROUP_CHOICES)
+    life_skill = forms.ChoiceField(choices=LIFE_SKILL_CHOICES)
+    difficulty_level = forms.ChoiceField(choices=DIFFICULTY_CHOICES, initial='Beginner')
 
     class Meta:
         model = Story
         # `content` is intentionally excluded — it's derived from `sentences`.
-        fields = ['title', 'age_group', 'life_skill', 'life_skill_lesson']
+        fields = ['title', 'age_group', 'difficulty_level', 'life_skill', 'life_skill_lesson']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # On edit, decode the stored JSON back into one-sentence-per-line text.
         instance = getattr(self, 'instance', None)
+        # Keep an existing value selectable even if it predates these fixed
+        # choices (e.g. legacy seed data), so editing never silently drops it.
+        if instance and instance.pk:
+            for field_name in ('age_group', 'life_skill', 'difficulty_level'):
+                current = getattr(instance, field_name, '')
+                field = self.fields[field_name]
+                if current and current not in dict(field.choices):
+                    field.choices = [(current, f'{current} (existing)')] + list(field.choices)
+        # On edit, decode the stored JSON back into one-sentence-per-line text.
         if instance and instance.pk and instance.content:
             try:
                 parts = json.loads(instance.content)
@@ -143,12 +163,12 @@ class StudentAdmin(admin.ModelAdmin):
 @admin.register(Story)
 class StoryAdmin(admin.ModelAdmin):
     form = StoryAdminForm
-    list_display = ('id', 'title', 'age_group', 'life_skill', 'word_count', 'sentence_count', 'times_read', 'created_at')
-    list_filter = ('age_group', 'life_skill')
+    list_display = ('id', 'title', 'age_group', 'difficulty_level', 'life_skill', 'word_count', 'sentence_count', 'times_read', 'created_at')
+    list_filter = ('age_group', 'difficulty_level', 'life_skill')
     search_fields = ('title', 'life_skill')
     ordering = ('-created_at',)
     fieldsets = (
-        (None, {'fields': ('title', 'age_group')}),
+        (None, {'fields': ('title', 'age_group', 'difficulty_level')}),
         ('Story', {'fields': ('sentences',)}),
         ('Life skill', {'fields': ('life_skill', 'life_skill_lesson')}),
     )
