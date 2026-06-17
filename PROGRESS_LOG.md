@@ -436,7 +436,42 @@ Engine…". Documented here + in `.gitignore`.
 Full pipeline verified on the emulator: Onboarding -> Story List -> Game (Vosk, progress bar, Next) ->
 session POST -> Lesson (accuracy score + life skill) -> Back to Stories.
 
-## Only remaining item (user-only)
-- **Voice accuracy test:** read a story aloud (physical device recommended); confirm a non-zero
-  `accuracy_percent` and real words in `difficult_words` (try stumbling on a word to see it captured).
-  I cannot perform this — no microphone/voice on my end.
+## Entry 18 — Backend prepped for Railway deployment (so a physical phone can reach it over HTTPS)
+
+NOTE: this work is in the SEPARATE Django repo `/Users/ellis/Documents/GitHub/literacyappBackend`
+(project package `backend`, i.e. `backend.wsgi` / `backend.settings`), located by searching the disk —
+it is NOT in the Android project workspace.
+
+**What was done (Django backend)**
+- `backend/settings.py`:
+  - `SECRET_KEY` and `DEBUG` now read from env (fallbacks for local dev).
+  - `ALLOWED_HOSTS` scoped to local hosts + `.up.railway.app` / `.railway.app` (NOT a blanket `*`);
+    added matching `CSRF_TRUSTED_ORIGINS`.
+  - Added `whitenoise.middleware.WhiteNoiseMiddleware` right below SecurityMiddleware.
+  - `DATABASES` via `dj_database_url.config(default=sqlite…)` — uses Railway `DATABASE_URL` (Postgres)
+    in prod, SQLite locally.
+  - Static: `STATIC_ROOT=staticfiles`, `STATICFILES_STORAGE=whitenoise…CompressedManifestStaticFilesStorage`.
+- `Procfile`: `web: python manage.py migrate && (python manage.py loaddata stories || true) && gunicorn backend.wsgi --bind 0.0.0.0:$PORT`
+- `requirements.txt`: regenerated via venv `pip freeze` (added dj-database-url, psycopg2-binary, whitenoise).
+- `.gitignore` added (venv, db.sqlite3, __pycache__, staticfiles, .env); `git init` + first commit done.
+- Verified: `manage.py check` → 0 issues; `loaddata stories` → "Installed 3 object(s)".
+
+**Key gotcha caught:** the seeded stories live in LOCAL SQLite; Railway's Postgres starts EMPTY. The
+fixture `api/fixtures/stories.json` (3 stories) is the reproducible seed, so the Procfile runs
+`loaddata stories` on every boot (idempotent; `|| true` so a hiccup can't block startup).
+
+**Build status:** Django system check clean; backend committed locally, push-ready.
+
+---
+
+## Status: Android app feature-complete; backend deploy in progress
+
+## BLOCKED — needs user (cannot be done from here)
+1. **Voice accuracy test:** read a story aloud (physical device recommended); confirm non-zero
+   `accuracy_percent` + real `difficult_words`. (No microphone/voice on my end.)
+2. **GitHub repo for the backend:** the backend has no remote and `gh` CLI isn't installed. User must
+   create an empty GitHub repo (e.g. `literacyappBackend`); then I can add the remote + push.
+3. **Railway deploy:** New Project → deploy backend repo → add PostgreSQL (auto-injects `DATABASE_URL`).
+   Browser login required — user only.
+4. **After deploy:** user pastes the public Railway URL; then I swap `RetrofitClient.BASE_URL` to the
+   `https://…` URL and rebuild for the physical phone.
