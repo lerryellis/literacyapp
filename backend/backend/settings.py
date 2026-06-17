@@ -170,15 +170,16 @@ JAZZMIN_SETTINGS = {
     "welcome_sign": "Welcome to the LiteracyApp dashboard",
     "copyright": "LiteracyApp",
     # Search bar over these models in the top nav.
-    "search_model": ["api.Student", "api.Story", "api.Session"],
+    "search_model": ["api.Student", "api.Story", "api.Session", "api.Teacher"],
     # Sidebar grouping/order.
-    "order_with_respect_to": ["api", "api.Story", "api.Student", "api.Session", "auth"],
+    "order_with_respect_to": ["api", "api.Story", "api.Student", "api.Teacher", "api.Session", "auth"],
     # FontAwesome icons per model (matches the look of the old React sidebar).
     "icons": {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
         "auth.Group": "fas fa-users",
         "api.Student": "fas fa-user-graduate",
+        "api.Teacher": "fas fa-chalkboard-teacher",
         "api.Story": "fas fa-book-open",
         "api.Session": "fas fa-microphone",
     },

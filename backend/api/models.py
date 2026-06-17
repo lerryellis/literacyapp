@@ -1,4 +1,28 @@
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
+
+
+class Teacher(models.Model):
+    """A teacher who self-registers with email + password and monitors the
+    students belonging to their school."""
+
+    name = models.CharField(max_length=255, blank=True)
+    email = models.EmailField(unique=True)
+    school = models.CharField(max_length=255)
+    password = models.CharField(max_length=255)  # stored hashed
+    auth_token = models.CharField(max_length=64, blank=True, db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password)
+
+    def __str__(self):
+        return f"{self.email} ({self.school})"
 
 
 class Student(models.Model):

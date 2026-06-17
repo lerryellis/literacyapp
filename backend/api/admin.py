@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.db.models import Avg, Count
 from django.utils.html import format_html
 
-from .models import Student, Story, Session
+from .models import Student, Story, Session, Teacher
 
 
 # Age bands the Android app filters by (?age_group=). Keep these in sync with
@@ -82,6 +82,20 @@ def _word_count(content):
     except (ValueError, TypeError):
         text = content or ""
     return len(text.split())
+
+
+@admin.register(Teacher)
+class TeacherAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'email', 'school', 'student_count', 'created_at')
+    list_filter = ('school',)
+    search_fields = ('name', 'email', 'school')
+    # Hashed password / token are never edited by hand here.
+    readonly_fields = ('password', 'auth_token', 'created_at', 'updated_at')
+    ordering = ('-created_at',)
+
+    @admin.display(description='Students in school')
+    def student_count(self, obj):
+        return Student.objects.filter(school__iexact=obj.school).count()
 
 
 @admin.register(Student)
