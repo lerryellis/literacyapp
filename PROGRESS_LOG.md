@@ -820,10 +820,25 @@ needs a device glance.
 
 ---
 
+## Entry 35 — Updated menu background + full app documentation
+
+- User replaced `menu_background.jpg` (now 1684×2528). NOTE: it's actually a PNG saved with a `.jpg`
+  extension, ~5 MB — loads fine (Android decodes by content) but bumped the APK to ~117 MB; offered to
+  re-encode to a true JPEG to slim it.
+- Removed 4 stray `.DS_Store` files from `res/` (would break aapt). Rebuilt + installed; committed (82f06ae).
+- Wrote **`DOCUMENTATION.md`** — detailed technical docs: overview, user flow, **use-case diagram**
+  (Mermaid + ASCII, actors = Child / Teacher-Admin / Backend), architecture + project structure, data
+  model + REST API, Vosk speech + scoring + listening window, gamification, error handling, teacher admin
+  dashboard, setup/build/run, deployment, and known constraints.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL; APK ~117 MB installed.
+
+---
+
 ## Next up
 - USER: eyeball onboarding placement (TOP_SPACE/MID_SPACE), backgrounds, icon, all 5 avatars, game motion
   on a device (image reading is down on my side); tune listening window if still too short/long.
+- (Optional) re-encode `menu_background` to true JPEG to slim the APK (~5 MB → a few hundred KB).
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.
-- Railway auto-deploys the admin change on push.
 - USER: generate avatar PNGs (Kofi/Ama/Yaw/Esi/Musa × happy/struggling/excited) → I wire `avatarRes()`.
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.
