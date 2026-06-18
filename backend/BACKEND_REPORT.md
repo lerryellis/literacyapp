@@ -269,7 +269,7 @@ sequenceDiagram
     DB-->>API: stories[]
     API-->>App: stories (content = JSON sentence array)
 
-    Note over App: Child reads aloud; app scores accuracy<br/>and records difficult words
+    Note over App: Child reads aloud — app scores accuracy and records difficult words
 
     App->>API: POST /api/sessions/ (student, story, accuracy, duration, difficult_words)
     API->>DB: insert session
