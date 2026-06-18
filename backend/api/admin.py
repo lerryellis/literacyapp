@@ -39,6 +39,26 @@ def export_difficult_words_csv(modeladmin, request, queryset):
     )
 
 
+@admin.action(description="Export selected stories to CSV")
+def export_stories_csv(modeladmin, request, queryset):
+    header = ["id", "title", "age_group", "difficulty_level", "life_skill",
+              "word_count", "content", "created_at"]
+    rows = [
+        [s.id, s.title, s.age_group, s.difficulty_level, s.life_skill,
+         _word_count(s.content), s.content, s.created_at.isoformat()]
+        for s in queryset
+    ]
+    return csv_response("stories_export", header, rows)
+
+
+@admin.action(description="Export selected teachers to CSV")
+def export_teachers_csv(modeladmin, request, queryset):
+    # Never export password hashes or auth tokens.
+    header = ["id", "name", "email", "school", "created_at"]
+    rows = [[t.id, t.name, t.email, t.school, t.created_at.isoformat()] for t in queryset]
+    return csv_response("teachers_export", header, rows)
+
+
 # Age bands the Android app filters by (?age_group=). Keep these in sync with
 # the app so a typo here can't hide a story from learners.
 AGE_GROUP_CHOICES = [
@@ -205,6 +225,7 @@ class TeacherAdmin(admin.ModelAdmin):
     # Hashed password / token are never edited by hand here.
     readonly_fields = ('password', 'auth_token', 'created_at', 'updated_at')
     ordering = ('-created_at',)
+    actions = [export_teachers_csv]
 
     @admin.display(description='Students in school')
     def student_count(self, obj):
@@ -332,6 +353,7 @@ class StoryAdmin(admin.ModelAdmin):
     list_filter = ('age_group', 'difficulty_level', 'life_skill')
     search_fields = ('title', 'life_skill')
     ordering = ('-created_at',)
+    actions = [export_stories_csv]
     fieldsets = (
         (None, {'fields': ('title', 'age_group', 'difficulty_level')}),
         ('Story', {'fields': ('sentences',)}),

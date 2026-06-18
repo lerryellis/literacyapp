@@ -5,6 +5,7 @@ from .views import (
     SessionViewSet,
     StoryViewSet,
     StudentViewSet,
+    export_all,
     research_difficult_words,
     research_sessions,
     school_autocomplete,
@@ -29,4 +30,5 @@ urlpatterns = [
     path("schools/", school_autocomplete, name="school-autocomplete"),
     path("research/difficult-words/", research_difficult_words, name="research-difficult-words"),
     path("research/sessions/", research_sessions, name="research-sessions"),
+    path("research/export-all/", export_all, name="research-export-all"),
 ] + router.urls

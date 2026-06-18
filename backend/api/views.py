@@ -1,7 +1,11 @@
+import csv
 import hashlib
+import io
 import secrets
+import zipfile
 
 from django.db.models import Avg, Count, Max
+from django.http import HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.decorators import (
@@ -309,3 +313,84 @@ def research_sessions(request):
     if request.query_params.get("download") == "csv":
         return csv_response("research_sessions", header, rows)
     return Response([dict(zip(header, row)) for row in rows])
+
+
+def _table_csv(header, rows):
+    """Serialise a header + rows into a CSV string."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(header)
+    for row in rows:
+        writer.writerow(row)
+    return buffer.getvalue()
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
+@permission_classes([IsAdminUser])
+def export_all(request):
+    """Admin-only: every table of collected data as a ZIP of CSV files
+    (students, sessions, stories, teachers, difficult-words aggregate).
+    A full export of the database for analysis/backup. Secrets (teacher
+    password hashes/tokens) are never included."""
+    students = Student.objects.annotate(
+        _n=Count("sessions"), _avg=Avg("sessions__accuracy_percent")
+    )
+    students_csv = _table_csv(
+        ["id", "name", "school", "age_group", "device_id",
+         "sessions_count", "avg_accuracy", "created_at"],
+        [
+            [s.id, s.name, s.school, s.age_group, s.device_id, s._n,
+             round(s._avg, 1) if s._avg is not None else "", s.created_at.isoformat()]
+            for s in students
+        ],
+    )
+
+    sessions = Session.objects.select_related("student", "story").order_by("created_at")
+    sessions_csv = _table_csv(
+        ["id", "student_id", "student_name", "school", "age_group", "story_id",
+         "story_title", "difficulty_level", "accuracy_percent", "duration_seconds",
+         "difficult_words", "created_at"],
+        [
+            [s.id, s.student_id, s.student.name, s.student.school, s.student.age_group,
+             s.story_id, s.story.title, s.story.difficulty_level, s.accuracy_percent,
+             s.duration_seconds, "; ".join(str(w) for w in (s.difficult_words or [])),
+             s.created_at.isoformat()]
+            for s in sessions
+        ],
+    )
+
+    stories = Story.objects.all()
+    stories_csv = _table_csv(
+        ["id", "title", "age_group", "difficulty_level", "life_skill",
+         "life_skill_lesson", "content", "created_at"],
+        [
+            [s.id, s.title, s.age_group, s.difficulty_level, s.life_skill,
+             s.life_skill_lesson, s.content, s.created_at.isoformat()]
+            for s in stories
+        ],
+    )
+
+    teachers = Teacher.objects.all()
+    teachers_csv = _table_csv(
+        ["id", "name", "email", "school", "created_at"],
+        [[t.id, t.name, t.email, t.school, t.created_at.isoformat()] for t in teachers],
+    )
+
+    words = aggregate_difficult_words(Session.objects.all())
+    words_csv = _table_csv(
+        ["word", "occurrences", "student_count"],
+        [[w["word"], w["occurrences"], w["student_count"]] for w in words],
+    )
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("students.csv", students_csv)
+        archive.writestr("sessions.csv", sessions_csv)
+        archive.writestr("stories.csv", stories_csv)
+        archive.writestr("teachers.csv", teachers_csv)
+        archive.writestr("difficult_words.csv", words_csv)
+
+    response = HttpResponse(buffer.getvalue(), content_type="application/zip")
+    response["Content-Disposition"] = 'attachment; filename="literacyapp_export.zip"'
+    return response

@@ -13,6 +13,12 @@
 {% block content %}
 {% dashboard_stats as stats %}
 
+<div class="mb-3 text-right">
+    <a href="/api/research/export-all/" class="btn btn-primary">
+        <i class="fas fa-file-archive mr-1"></i> Export all data (ZIP of CSVs)
+    </a>
+</div>
+
 <!-- Stat cards -->
 <div class="row">
     <div class="col-lg-3 col-6">
