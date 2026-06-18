@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import ayola.literacyapp.game.api.RetrofitClient
 import ayola.literacyapp.game.models.Student
+import ayola.literacyapp.game.utils.ErrorMessages
 import ayola.literacyapp.game.utils.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,13 +55,13 @@ class OnboardingViewModel(
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = "Login failed (HTTP ${response.code()})."
+                        error = ErrorMessages.forHttp("createStudent", response.code())
                     )
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Could not reach the server."
+                    error = ErrorMessages.forException("createStudent", e)
                 )
             }
         }

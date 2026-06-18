@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import ayola.literacyapp.game.api.RetrofitClient
 import ayola.literacyapp.game.models.Story
+import ayola.literacyapp.game.utils.ErrorMessages
 import ayola.literacyapp.game.utils.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,13 +42,13 @@ class StoryListViewModel(
                 } else {
                     _uiState.value = StoryListUiState(
                         isLoading = false,
-                        error = "Could not load stories (HTTP ${response.code()})."
+                        error = ErrorMessages.forHttp("getStories", response.code())
                     )
                 }
             } catch (e: Exception) {
                 _uiState.value = StoryListUiState(
                     isLoading = false,
-                    error = e.message ?: "Could not reach the server."
+                    error = ErrorMessages.forException("getStories", e)
                 )
             }
         }

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import ayola.literacyapp.game.api.RetrofitClient
 import ayola.literacyapp.game.models.Story
+import ayola.literacyapp.game.utils.ErrorMessages
 import ayola.literacyapp.game.utils.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,14 +36,14 @@ class LessonViewModel(
                 val story = response.body()?.firstOrNull { it.id == storyId }
                 when {
                     !response.isSuccessful ->
-                        _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, error = "Could not load lesson (HTTP ${response.code()}).")
+                        _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, error = ErrorMessages.forHttp("getStories(lesson)", response.code()))
                     story == null ->
-                        _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, error = "Story not found.")
+                        _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, error = "We couldn't find this story. Please go back and try again.")
                     else ->
                         _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, story = story)
                 }
             } catch (e: Exception) {
-                _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, error = e.message ?: "Could not reach the server.")
+                _uiState.value = LessonUiState(isLoading = false, accuracy = accuracy, error = ErrorMessages.forException("getStories(lesson)", e))
             }
         }
     }

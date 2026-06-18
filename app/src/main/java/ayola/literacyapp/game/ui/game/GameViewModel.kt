@@ -7,6 +7,7 @@ import ayola.literacyapp.game.api.RetrofitClient
 import ayola.literacyapp.game.models.SessionRequest
 import ayola.literacyapp.game.models.Story
 import ayola.literacyapp.game.models.getSentences
+import ayola.literacyapp.game.utils.ErrorMessages
 import ayola.literacyapp.game.utils.SessionManager
 import ayola.literacyapp.game.utils.SpeechRecognizerManager
 import kotlinx.coroutines.Dispatchers
@@ -117,9 +118,9 @@ class GameViewModel(
                 val story = response.body()?.firstOrNull { it.id == storyId }
                 when {
                     !response.isSuccessful ->
-                        _state.value = _state.value.copy(error = "Could not load story (HTTP ${response.code()}).")
+                        _state.value = _state.value.copy(error = ErrorMessages.forHttp("getStories(game)", response.code()))
                     story == null ->
-                        _state.value = _state.value.copy(error = "Story not found.")
+                        _state.value = _state.value.copy(error = "We couldn't find this story. Please go back and try again.")
                     else -> {
                         startTimeMillis = System.currentTimeMillis()
                         // Preserve the engine-ready flag we may already have received.
@@ -132,7 +133,7 @@ class GameViewModel(
                     }
                 }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = e.message ?: "Could not reach the server.")
+                _state.value = _state.value.copy(error = ErrorMessages.forException("getStories(game)", e))
             }
         }
     }
@@ -239,7 +240,8 @@ class GameViewModel(
                     )
                 )
             } catch (e: Exception) {
-                // Best-effort: don't block the lesson screen if the POST fails.
+                // Best-effort: don't block the lesson screen if the POST fails — but do log it.
+                ErrorMessages.forException("createSession", e)
             }
         }
     }

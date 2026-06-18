@@ -749,6 +749,25 @@ needs a device glance.
 
 ---
 
+## Entry 31 — Friendly error handling + proper logging
+
+- New `utils/ErrorMessages.kt`:
+  - `forException(context, t)` maps exceptions to child/parent-friendly text AND logs the real cause
+    (`Log.e`, tag "LiteracyApp"): UnknownHostException → "No internet connection. Please check your Wi-Fi
+    or mobile data and try again.", SocketTimeout → timed out, ConnectException → couldn't reach server,
+    SSLException → secure-connection problem, other IOException → network problem, else generic.
+  - `forHttp(context, code)` maps status codes to friendly text + logs (`Log.w`): 5xx → server problem,
+    408/429 → busy, 404 → not found, 4xx → check details.
+- Wired into all ViewModels (Onboarding, StoryList, Game, Lesson) — replaced raw `e.message` /
+  `"HTTP <code>"` strings. GameViewModel's previously-silent `createSession` failure now logs too.
+- **Verified live:** disabled emulator network → login showed "No internet connection. Please check your
+  Wi-Fi or mobile data and try again." on screen, while Logcat showed
+  `E LiteracyApp: createStudent failed: UnknownHostException: Unable to resolve host ...`.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL; verified on emulator.
+
+---
+
 ## Next up
 - USER: eyeball + tell me to adjust onboarding placement (inputs/ages) via TOP_SPACE/MID_SPACE; check the
   icon, splash, backgrounds, Story List/Lesson, game motion on a device (image reading is down on my side).
