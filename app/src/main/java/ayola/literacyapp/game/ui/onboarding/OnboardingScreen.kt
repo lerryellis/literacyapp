@@ -1,5 +1,7 @@
 package ayola.literacyapp.game.ui.onboarding
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,9 +32,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ayola.literacyapp.game.R
 
 private val FieldShape = RoundedCornerShape(18.dp)
 
@@ -51,14 +56,27 @@ fun OnboardingScreen(
     LaunchedEffect(state.loginSuccess) { if (state.loginSuccess) onLoginSuccess() }
 
     Scaffold { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Box(Modifier.fillMaxSize()) {
+            // Full-bleed menu background + a soft scrim so the form stays readable.
+            Image(
+                painter = painterResource(R.drawable.menu_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.82f))
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             Spacer(Modifier.height(48.dp))
             Text("📚", fontSize = 72.sp)
             Spacer(Modifier.height(8.dp))
@@ -150,6 +168,7 @@ fun OnboardingScreen(
                 )
             }
             Spacer(Modifier.height(32.dp))
+            }
         }
     }
 }
