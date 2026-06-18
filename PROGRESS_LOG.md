@@ -692,8 +692,25 @@ needs a device glance.
 
 ---
 
+## Entry 28 — Custom app launcher icon
+
+- User supplied `iconmain.png` (760×762, ~square). Kept a source copy in `branding/iconmain.png`
+  (removed the earlier portrait `AYOLAICON.png` — superseded).
+- Center-cropped to a perfect square and generated legacy launcher icons at all densities
+  (`mipmap-{mdpi..xxxhdpi}/ic_launcher.png` + `ic_launcher_round.png`); removed the old default
+  `ic_launcher*.webp`.
+- Removed the adaptive `mipmap-anydpi-v26/ic_launcher*.xml` so the legacy PNGs are used everywhere
+  (reliable when I can't preview adaptive-mask cropping). Manifest already points at `@mipmap/ic_launcher`.
+- Verified: APK bundles all 5 density icons; reinstalled OK. (Icon VISUAL not eyeballed — image reading
+  still down this session.) If it has transparency / needs an adaptive look, regenerate via Android
+  Studio's Image Asset Studio.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL.
+
+---
+
 ## Next up
-- USER: eyeball splash + login background + Story List/Lesson + game motion on a device (image reading is
-  down on my side this session).
+- USER: eyeball the app icon + splash + login background + Story List/Lesson + game motion on a device
+  (image reading is down on my side this session).
 - USER: generate avatar PNGs (Kofi/Ama/Yaw/Esi/Musa × happy/struggling/excited) → I wire `avatarRes()`.
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.
