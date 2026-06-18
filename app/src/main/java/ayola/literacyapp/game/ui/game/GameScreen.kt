@@ -18,8 +18,11 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -60,12 +63,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import ayola.literacyapp.game.models.getSentences
@@ -87,7 +86,7 @@ private fun confidenceColor(c: Float): Color = when {
     else -> Bad
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun GameScreen(
     viewModel: GameViewModel,
@@ -96,6 +95,7 @@ fun GameScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val speak = rememberWordSpeaker()
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -212,7 +212,8 @@ fun GameScreen(
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                             )
                             Spacer(Modifier.height(10.dp))
-                            // Swoosh between sentences; words light up green as they're recognized.
+                            // Swoosh between sentences; words light up green as recognized, and each
+                            // word is tappable to hear it pronounced (Text-to-Speech).
                             AnimatedContent(
                                 targetState = state.currentSentenceIndex,
                                 transitionSpec = {
@@ -221,12 +222,32 @@ fun GameScreen(
                                 },
                                 label = "sentence"
                             ) { idx ->
-                                Text(
-                                    text = highlightSentence(sentences.getOrNull(idx).orEmpty(), heardWords),
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    sentences.getOrNull(idx).orEmpty().split(" ").forEach { token ->
+                                        val norm = token.lowercase().filter { it.isLetterOrDigit() }
+                                        val matched = norm.isNotEmpty() && norm in heardWords
+                                        Text(
+                                            text = token,
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            color = if (matched) Good
+                                            else MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .clickable { speak(token) }
+                                                .padding(horizontal = 2.dp)
+                                        )
+                                    }
+                                }
                             }
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                "🔊 Tap a word to hear it",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
+                            )
                         }
                     }
                     Spacer(Modifier.height(16.dp))
@@ -418,21 +439,6 @@ private fun ConfidenceMeter(confidence: Float) {
 
 private fun heardWordSet(heard: String): Set<String> =
     heard.lowercase().split(Regex("[^a-z0-9]+")).filter { it.isNotBlank() }.toSet()
-
-/** Highlights (green + bold) each expected word that has been recognized so far. */
-private fun highlightSentence(sentence: String, heard: Set<String>): AnnotatedString =
-    buildAnnotatedString {
-        val tokens = sentence.split(" ")
-        tokens.forEachIndexed { i, tok ->
-            val norm = tok.lowercase().filter { it.isLetterOrDigit() }
-            if (norm.isNotEmpty() && norm in heard) {
-                withStyle(SpanStyle(color = Good, fontWeight = FontWeight.Bold)) { append(tok) }
-            } else {
-                append(tok)
-            }
-            if (i != tokens.lastIndex) append(" ")
-        }
-    }
 
 private fun feedbackFor(confidence: Float, isListening: Boolean): String = when {
     confidence >= 0.70f -> "✅ Great reading! Tap Next"

@@ -85,6 +85,48 @@ redeploys.
 | password | CharField | **hashed** (Django hashers) |
 | auth_token | CharField | issued at register/login |
 
+### 3.1 Entity-Relationship Diagram
+
+```mermaid
+erDiagram
+    STUDENT ||--o{ SESSION : "has"
+    STORY   ||--o{ SESSION : "appears in"
+    STUDENT {
+      int id PK
+      string name
+      string school
+      string age_group
+      string device_id
+    }
+    STORY {
+      int id PK
+      string title
+      string age_group
+      text content "JSON sentences"
+      string life_skill
+      string difficulty_level
+    }
+    SESSION {
+      int id PK
+      int student_id FK
+      int story_id FK
+      int duration_seconds
+      float accuracy_percent
+      json difficult_words
+    }
+    TEACHER {
+      int id PK
+      string email UK
+      string school
+      string password "hashed"
+      string auth_token
+    }
+```
+
+> **Note:** `TEACHER` and `STUDENT` are linked by matching `school` *string*
+> (no foreign key / `School` table). A teacher sees students where
+> `student.school == teacher.school`.
+
 ---
 
 ## 4. API Surface
@@ -207,6 +249,53 @@ flowchart LR
 
     UC6 -. includes .-> UC7
     UC4 -. includes .-> UC5
+```
+
+### Sequence Diagram — Student reading flow
+
+```mermaid
+sequenceDiagram
+    participant App as Android App
+    participant API as Django API
+    participant DB as Postgres
+
+    App->>API: POST /api/students/ (name, device_id, school, age_group)
+    API->>DB: get_or_create(name, device_id)
+    DB-->>API: student (new or existing)
+    API-->>App: student {id} (201 new / 200 returning)
+
+    App->>API: GET /api/stories/?age_group=5-7
+    API->>DB: filter stories by age band
+    DB-->>API: stories[]
+    API-->>App: stories (content = JSON sentence array)
+
+    Note over App: Child reads aloud; app scores accuracy<br/>and records difficult words
+
+    App->>API: POST /api/sessions/ (student, story, accuracy, duration, difficult_words)
+    API->>DB: insert session
+    DB-->>API: ok
+    API-->>App: 201 Created
+```
+
+### Sequence Diagram — Teacher dashboard flow
+
+```mermaid
+sequenceDiagram
+    participant T as Teacher (app/web)
+    participant API as Django API
+    participant DB as Postgres
+
+    T->>API: GET /api/schools/?q=acc
+    API-->>T: ["Accra Primary", ...]
+    T->>API: POST /api/teachers/register/ (email, password, school)
+    API->>DB: create teacher (hashed pw, token)
+    API-->>T: { token }
+    T->>API: GET /api/teachers/students/ (Authorization: Token ...)
+    API->>DB: students where school == teacher.school + aggregates
+    DB-->>API: progress rows
+    API-->>T: students + sessions_count + avg_accuracy
+    T->>API: GET /api/teachers/difficult-words/?download=csv
+    API-->>T: difficult_words.csv
 ```
 
 ### Use Case Diagram (ASCII fallback)

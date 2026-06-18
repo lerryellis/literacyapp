@@ -2,6 +2,7 @@ package ayola.literacyapp.game.ui.game
 
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.speech.tts.TextToSpeech
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ayola.literacyapp.game.ui.theme.Good
 import ayola.literacyapp.game.ui.theme.Warn
+import java.util.Locale
 
 /**
  * A reactive reading buddy that responds to the child's live progress.
@@ -125,4 +127,41 @@ fun rememberDing(): () -> Unit {
         onDispose { tone.release() }
     }
     return remember(tone) { { tone.startTone(ToneGenerator.TONE_PROP_BEEP2, 160) } }
+}
+
+/**
+ * Returns a function that speaks a word aloud using the device's offline Text-to-Speech engine
+ * (US English, slightly slowed for young readers). Used so a child can tap a word to hear how it's
+ * pronounced. The engine is initialized once and shut down when the composable leaves.
+ */
+@Composable
+fun rememberWordSpeaker(): (String) -> Unit {
+    val context = LocalContext.current
+    val engineHolder = remember { arrayOfNulls<TextToSpeech>(1) }
+
+    DisposableEffect(Unit) {
+        val tts = TextToSpeech(context.applicationContext) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                engineHolder[0]?.apply {
+                    language = Locale.US
+                    setSpeechRate(0.85f) // a touch slower for clarity
+                }
+            }
+        }
+        engineHolder[0] = tts
+        onDispose {
+            tts.stop()
+            tts.shutdown()
+            engineHolder[0] = null
+        }
+    }
+
+    return remember {
+        { word: String ->
+            val clean = word.trim().trim('.', ',', '!', '?', ';', ':', '"', '\'')
+            if (clean.isNotEmpty()) {
+                engineHolder[0]?.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "lit-word")
+            }
+        }
+    }
 }

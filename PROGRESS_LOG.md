@@ -835,9 +835,24 @@ needs a device glance.
 
 ---
 
+## Entry 36 — Tap-a-word to hear its pronunciation (Text-to-Speech)
+
+- New `rememberWordSpeaker()` (in `ReadingBuddy.kt`): wraps Android `TextToSpeech` (US English, rate 0.85,
+  offline, no asset). Inits once, shuts down on dispose; `speak(word)` strips punctuation + QUEUE_FLUSH.
+- `GameScreen`: the sentence now renders each word as an individual tappable chip in a `FlowRow` (matched
+  words still green); tapping a word speaks it. Added a "🔊 Tap a word to hear it" hint. This is the audio
+  feedback for difficult words — a child taps any word they missed to hear it. Removed the old
+  `highlightSentence` AnnotatedString (replaced by tappable word chips).
+- Verified live: tapping "shiny" triggered GoogleTTS ("Synthesis request … en-US … TTS dispatch …"), no
+  crash. (Audible on a real device; emulator may mute background audio. Device has com.google.android.tts.)
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL; verified on emulator.
+
+---
+
 ## Next up
-- USER: eyeball onboarding placement (TOP_SPACE/MID_SPACE), backgrounds, icon, all 5 avatars, game motion
-  on a device (image reading is down on my side); tune listening window if still too short/long.
+- USER: eyeball onboarding placement (TOP_SPACE/MID_SPACE), backgrounds, icon, all 5 avatars, game motion,
+  and try tap-to-pronounce on a device (image/audio not verifiable on my side).
 - (Optional) re-encode `menu_background` to true JPEG to slim the APK (~5 MB → a few hundred KB).
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.
 - USER: generate avatar PNGs (Kofi/Ama/Yaw/Esi/Musa × happy/struggling/excited) → I wire `avatarRes()`.
