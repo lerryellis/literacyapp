@@ -2,8 +2,9 @@ import json
 
 from django import forms
 from django.contrib import admin
-from django.db.models import Avg, Count
-from django.utils.html import format_html, format_html_join
+from django.db.models import Avg, Count, Max
+from django.utils.html import escape, format_html, format_html_join
+from django.utils.safestring import mark_safe
 
 from .analytics import aggregate_difficult_words, csv_response
 from .models import Student, Story, Session, Teacher
@@ -134,6 +135,68 @@ def _word_count(content):
     return len(text.split())
 
 
+def _progress_svg(points):
+    """Render an inline SVG line chart of accuracy over time.
+
+    `points` is a list of (accuracy, label) in chronological order.
+    Server-side SVG means it always renders — no JS/CDN dependency.
+    """
+    if not points:
+        return mark_safe(
+            '<div style="color:#888;padding:12px;">No sessions yet — '
+            'the progress chart appears once this student starts reading.</div>'
+        )
+
+    W, H = 640, 280
+    pad_l, pad_r, pad_t, pad_b = 44, 16, 16, 46
+    plot_w, plot_h = W - pad_l - pad_r, H - pad_t - pad_b
+    n = len(points)
+
+    def px(i):
+        return pad_l + (plot_w * (i / (n - 1)) if n > 1 else plot_w / 2)
+
+    def py(acc):
+        return pad_t + plot_h * (1 - (acc or 0) / 100)
+
+    parts = [
+        f'<svg viewBox="0 0 {W} {H}" style="max-width:100%;height:auto;'
+        'font-family:sans-serif;border:1px solid #eee;border-radius:8px;background:#fff;">'
+    ]
+    for val in (0, 25, 50, 75, 100):
+        gy = py(val)
+        parts.append(
+            f'<line x1="{pad_l}" y1="{gy:.1f}" x2="{W - pad_r}" y2="{gy:.1f}" '
+            'stroke="#ececec" stroke-width="1"/>'
+        )
+        parts.append(
+            f'<text x="{pad_l - 6}" y="{gy + 4:.1f}" text-anchor="end" '
+            f'font-size="11" fill="#999">{val}%</text>'
+        )
+    if n > 1:
+        line = " ".join(f"{px(i):.1f},{py(a):.1f}" for i, (a, _) in enumerate(points))
+        parts.append(
+            f'<polyline fill="none" stroke="#6f42c1" stroke-width="2.5" points="{line}"/>'
+        )
+    step = max(1, n // 6)
+    for i, (acc, label) in enumerate(points):
+        cx, cy = px(i), py(acc)
+        color = '#28a745' if acc >= 80 else ('#ffc107' if acc >= 50 else '#dc3545')
+        parts.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4" fill="{color}"/>')
+        if n <= 8 or i in (0, n - 1) or i % step == 0:
+            parts.append(
+                f'<text x="{cx:.1f}" y="{H - pad_b + 16:.1f}" text-anchor="middle" '
+                f'font-size="10" fill="#666">{escape(label)}</text>'
+            )
+    parts.append(
+        f'<line x1="{pad_l}" y1="{pad_t}" x2="{pad_l}" y2="{H - pad_b}" stroke="#333" stroke-width="1"/>'
+    )
+    parts.append(
+        f'<line x1="{pad_l}" y1="{H - pad_b}" x2="{W - pad_r}" y2="{H - pad_b}" stroke="#333" stroke-width="1"/>'
+    )
+    parts.append('</svg>')
+    return mark_safe("".join(parts))
+
+
 @admin.register(Teacher)
 class TeacherAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'email', 'school', 'student_count', 'created_at')
@@ -158,6 +221,62 @@ class StudentAdmin(admin.ModelAdmin):
     search_fields = ('name', 'school', 'device_id')
     ordering = ('-created_at',)
     actions = ['export_students_csv']
+    readonly_fields = ('profile_card', 'progress_chart', 'created_at', 'updated_at')
+    fieldsets = (
+        ('Profile', {'fields': ('profile_card',)}),
+        ('Details', {'fields': ('name', 'school', 'age_group', 'device_id')}),
+        ('Progress over time', {'fields': ('progress_chart',)}),
+    )
+
+    @admin.display(description='')
+    def profile_card(self, obj):
+        if not obj or not obj.pk:
+            return '—'
+        agg = obj.sessions.aggregate(
+            n=Count('id'), avg=Avg('accuracy_percent'), last=Max('created_at')
+        )
+        n = agg['n'] or 0
+        avg = agg['avg']
+        avg_txt = f'{avg:.1f}%' if avg is not None else '—'
+        last_txt = agg['last'].strftime('%b %d, %Y') if agg['last'] else 'never'
+        if n == 0:
+            label, color, fg = '🆕 First Time', '#6c757d', 'white'
+        elif (avg or 0) >= 80:
+            label, color, fg = '🌟 High Performer', '#28a745', 'white'
+        elif (avg or 0) < 50:
+            label, color, fg = '⚠️ Needs Support', '#dc3545', 'white'
+        elif n > 10:
+            label, color, fg = '🔥 Regular Learner', '#6f42c1', 'white'
+        else:
+            label, color, fg = '👍 On Track', '#ffc107', 'black'
+        return format_html(
+            '<div style="display:flex;gap:18px;align-items:center;border:1px solid #eee;'
+            'border-radius:12px;padding:18px;max-width:680px;background:#fff;">'
+            '<div style="width:64px;height:64px;border-radius:50%;background:#6f42c1;color:#fff;'
+            'display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;">{}</div>'
+            '<div style="flex:1;min-width:140px;">'
+            '<div style="font-size:20px;font-weight:bold;">{}</div>'
+            '<div style="color:#666;">{} &middot; Age {}</div>'
+            '<div style="color:#999;font-size:12px;font-family:monospace;">{}</div></div>'
+            '<div style="text-align:center;"><div style="font-size:22px;font-weight:bold;">{}</div>'
+            '<div style="color:#888;font-size:12px;">sessions</div></div>'
+            '<div style="text-align:center;"><div style="font-size:22px;font-weight:bold;">{}</div>'
+            '<div style="color:#888;font-size:12px;">avg accuracy</div></div>'
+            '<div style="text-align:center;"><div style="font-size:13px;color:#444;">last read</div>'
+            '<div style="color:#888;font-size:12px;">{}</div></div>'
+            '<div><span style="color:{};background:{};padding:5px 10px;border-radius:6px;'
+            'font-weight:bold;white-space:nowrap;">{}</span></div></div>',
+            (obj.name[:1] or '?').upper(), obj.name, obj.school, obj.age_group,
+            obj.device_id, n, avg_txt, last_txt, fg, color, label,
+        )
+
+    @admin.display(description='Accuracy per session (oldest → newest)')
+    def progress_chart(self, obj):
+        if not obj or not obj.pk:
+            return '—'
+        rows = obj.sessions.order_by('created_at').values('accuracy_percent', 'created_at')
+        points = [(r['accuracy_percent'], r['created_at'].strftime('%m/%d')) for r in rows]
+        return _progress_svg(points)
 
     @admin.action(description='Export selected students to CSV')
     def export_students_csv(self, request, queryset):
