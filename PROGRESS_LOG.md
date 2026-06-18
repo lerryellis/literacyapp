@@ -806,9 +806,24 @@ needs a device glance.
 
 ---
 
+## Entry 34 — Django admin: student profile card + progress chart (user-authored)
+
+- User enhanced `backend/api/admin.py` `StudentAdmin`:
+  - **Profile card** (`profile_card`): avatar initial, name/school/age/device, session count, avg accuracy,
+    last-read date, and a status badge (🌟 High Performer ≥80% / ⚠️ Needs Support <50% / 🔥 Regular >10
+    sessions / 👍 On Track / 🆕 First Time).
+  - **Progress chart** (`progress_chart` + `_progress_svg`): server-rendered inline **SVG** line chart of
+    accuracy per session over time (green/amber/red dots by score, 70%-style gridlines) — no JS/CDN, so it
+    always renders in the admin.
+  - Organised into fieldsets (Profile / Details / Progress over time).
+- Verified: `python manage.py check` → 0 issues. (Applies to the live Railway admin after deploy.)
+
+---
+
 ## Next up
 - USER: eyeball onboarding placement (TOP_SPACE/MID_SPACE), backgrounds, icon, all 5 avatars, game motion
   on a device (image reading is down on my side); tune listening window if still too short/long.
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.
+- Railway auto-deploys the admin change on push.
 - USER: generate avatar PNGs (Kofi/Ama/Yaw/Esi/Musa × happy/struggling/excited) → I wire `avatarRes()`.
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.

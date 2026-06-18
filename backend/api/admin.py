@@ -258,37 +258,66 @@ class StudentAdmin(admin.ModelAdmin):
         )
         n = agg['n'] or 0
         avg = agg['avg']
-        avg_txt = f'{avg:.1f}%' if avg is not None else '—'
-        last_txt = agg['last'].strftime('%b %d, %Y') if agg['last'] else 'never'
-        if n == 0:
-            label, color, fg = '🆕 First Time', '#6c757d', 'white'
-        elif (avg or 0) >= 80:
-            label, color, fg = '🌟 High Performer', '#28a745', 'white'
-        elif (avg or 0) < 50:
-            label, color, fg = '⚠️ Needs Support', '#dc3545', 'white'
-        elif n > 10:
-            label, color, fg = '🔥 Regular Learner', '#6f42c1', 'white'
+        stories_read = obj.sessions.values('story').distinct().count()
+        avg_txt = f'{avg:.0f}%' if avg is not None else '—'
+        last_txt = agg['last'].strftime('%b %d, %Y') if agg['last'] else 'Never'
+        if avg is None:
+            avg_color = '#64748b'
+        elif avg >= 80:
+            avg_color = '#16a34a'
+        elif avg >= 50:
+            avg_color = '#d97706'
         else:
-            label, color, fg = '👍 On Track', '#ffc107', 'black'
-        return format_html(
-            '<div style="display:flex;gap:18px;align-items:center;border:1px solid #eee;'
-            'border-radius:12px;padding:18px;max-width:680px;background:#fff;">'
-            '<div style="width:64px;height:64px;border-radius:50%;background:#6f42c1;color:#fff;'
-            'display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;">{}</div>'
-            '<div style="flex:1;min-width:140px;">'
-            '<div style="font-size:20px;font-weight:bold;">{}</div>'
-            '<div style="color:#666;">{} &middot; Age {}</div>'
-            '<div style="color:#999;font-size:12px;font-family:monospace;">{}</div></div>'
-            '<div style="text-align:center;"><div style="font-size:22px;font-weight:bold;">{}</div>'
-            '<div style="color:#888;font-size:12px;">sessions</div></div>'
-            '<div style="text-align:center;"><div style="font-size:22px;font-weight:bold;">{}</div>'
-            '<div style="color:#888;font-size:12px;">avg accuracy</div></div>'
-            '<div style="text-align:center;"><div style="font-size:13px;color:#444;">last read</div>'
-            '<div style="color:#888;font-size:12px;">{}</div></div>'
-            '<div><span style="color:{};background:{};padding:5px 10px;border-radius:6px;'
-            'font-weight:bold;white-space:nowrap;">{}</span></div></div>',
+            avg_color = '#dc2626'
+        if n == 0:
+            emoji, label = '🆕', 'New learner'
+        elif (avg or 0) >= 80:
+            emoji, label = '🌟', 'High performer'
+        elif (avg or 0) < 50:
+            emoji, label = '⚠️', 'Needs support'
+        elif n > 10:
+            emoji, label = '🔥', 'Regular learner'
+        else:
+            emoji, label = '👍', 'On track'
+
+        def tile(value, sublabel, color='#0f172a', size='28px'):
+            return format_html(
+                '<div style="flex:1 1 130px;background:#f8fafc;border:1px solid #eef2f7;'
+                'border-radius:14px;padding:16px 14px;text-align:center;">'
+                '<div style="font-size:{};font-weight:800;color:{};line-height:1.05;">{}</div>'
+                '<div style="font-size:11px;color:#64748b;margin-top:6px;text-transform:uppercase;'
+                'letter-spacing:.05em;font-weight:600;">{}</div></div>',
+                size, color, value, sublabel,
+            )
+
+        header = format_html(
+            '<div style="display:flex;align-items:center;gap:16px;padding:22px 24px;'
+            'background:linear-gradient(135deg,#6d28d9,#9333ea);color:#fff;">'
+            '<div style="width:62px;height:62px;flex:0 0 62px;border-radius:50%;'
+            'background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.55);'
+            'display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;">{}</div>'
+            '<div style="flex:1;min-width:0;">'
+            '<div style="font-size:22px;font-weight:800;line-height:1.15;">{}</div>'
+            '<div style="opacity:.92;font-size:13px;margin-top:3px;">{} &middot; Age {}</div>'
+            '<div style="opacity:.65;font-size:11px;font-family:ui-monospace,monospace;margin-top:2px;'
+            'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{}</div></div>'
+            '<span style="background:rgba(255,255,255,.22);padding:7px 15px;border-radius:999px;'
+            'font-weight:700;font-size:13px;white-space:nowrap;">{} {}</span></div>',
             (obj.name[:1] or '?').upper(), obj.name, obj.school, obj.age_group,
-            obj.device_id, n, avg_txt, last_txt, fg, color, label,
+            obj.device_id, emoji, label,
+        )
+
+        return format_html(
+            '<div style="max-width:760px;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;'
+            'box-shadow:0 1px 4px rgba(15,23,42,.08);'
+            'font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;">'
+            '{}'
+            '<div style="display:flex;gap:12px;flex-wrap:wrap;padding:18px;">{}{}{}{}</div></div>',
+            header,
+            tile(n, 'Sessions'),
+            tile(avg_txt, 'Avg accuracy', avg_color),
+            tile(stories_read, 'Stories read'),
+            tile(last_txt, 'Last read', size='16px'),
         )
 
     @admin.display(description='Accuracy per session (oldest → newest)')
