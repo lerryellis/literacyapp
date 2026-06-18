@@ -795,10 +795,20 @@ needs a device glance.
 
 ---
 
+## Entry 33 — Esi + Musa avatar art added (all 5 characters complete)
+
+- User added Esi/Musa PNGs (CamelCase again → broke the build). Renamed to the scheme:
+  `esi_{happy,struggling,excited}.png`, `musa_{happy,struggling,excited}.png` (Static→happy).
+- No code change needed — `ReadingBuddy` resolves them by name. Now all 5 characters have full art
+  (15 PNGs: kofi/ama/yaw/esi/musa × happy/struggling/excited).
+- Verified live: onboarded at age 14-15 → game screen `content-desc` = "Esi, happy" (real art rendering).
+- **APK rebuilt** (`app-debug.apk`, ~115 MB) — was failing on the invalid names; now BUILD SUCCESSFUL.
+
+---
+
 ## Next up
-- USER: add Esi (14-15) + Musa (16-18) avatar art (named `esi_happy.png` etc.) — auto-wires, no code change.
-- USER: eyeball onboarding placement (TOP_SPACE/MID_SPACE), backgrounds, icon, avatars, game motion on a
-  device (image reading is down on my side); tune listening window if still too short/long.
+- USER: eyeball onboarding placement (TOP_SPACE/MID_SPACE), backgrounds, icon, all 5 avatars, game motion
+  on a device (image reading is down on my side); tune listening window if still too short/long.
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.
 - USER: generate avatar PNGs (Kofi/Ama/Yaw/Esi/Musa × happy/struggling/excited) → I wire `avatarRes()`.
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.
