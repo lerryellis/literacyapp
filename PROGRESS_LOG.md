@@ -709,8 +709,48 @@ needs a device glance.
 
 ---
 
+## Entry 29 — App icon: adaptive + sizing iterations
+
+- User replaced the mipmaps with a 1254×1254 image (1.4 MB) copied into every density bucket (functional
+  but adds ~14 MB; can be right-sized on request).
+- Icon looked "small on white" → that's the legacy-icon fallback on Android 8+. Fix: restored an
+  **adaptive icon** (`mipmap-anydpi-v26/ic_launcher*.xml`) with the image as a full-bleed foreground +
+  white background color (`@color/ic_launcher_background`).
+- Measured the source (PIL): content fills 100% (no transparent padding), so smallness was purely the
+  legacy treatment.
+- Sized per feedback: full-bleed → too big → inset foreground via transparent padding. Two "same-action"
+  steps landed at **~63%** logo (20 px padding at mdpi, scaled per density: 20/30/40/60/80).
+- (Icon VISUAL not eyeballed — image-screenshot reading down all session; verified via build + PIL only.)
+
+---
+
+## Entry 30 — Onboarding redesign over the background + back-nav to age selection
+
+**Navigation**
+- From the Story List you can now go **back to age selection**: removed the
+  `popUpTo(ONBOARDING, inclusive)` on login→storylist so onboarding stays on the back stack, and added a
+  back arrow in the Story List top bar (`onBack = popBackStack`).
+- **Bug fixed:** returning to onboarding immediately bounced forward again because the retained
+  `OnboardingViewModel` still had `loginSuccess = true`. Added `onLoginHandled()` to consume the one-time
+  nav event; the screen calls it right after `onLoginSuccess()`. Verified: storylist → BACK → age
+  selection (no bounce).
+
+**Onboarding layout (per the background art)**
+- Removed the "Let's Read!" title, the 📚 icon, the "Tell us about you…" subtitle, the "How old are you?"
+  label, and the scrim — so the `menu_background` art shows.
+- `menu_background` is now full-bleed (`ContentScale.Crop`). Name/school are semi-opaque white-filled
+  `OutlinedTextField`s (readable over art); the 5 ages are a neat wrapping `FlowRow` of pill chips.
+- **Vertical placement is a BLIND first pass** (image reading down): tunable weights at the top of
+  `OnboardingScreen.kt` — `TOP_SPACE=44` (inputs/pointing-tip), `MID_SPACE=26` (ages/white-space),
+  `BOTTOM_SPACE=16`. Needs the user's eyes to dial in.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL; reinstalled; nav verified via UI dump.
+**APK:** `app/build/outputs/apk/debug/app-debug.apk` (~115 MB) — current, ready to sideload/export.
+
+---
+
 ## Next up
-- USER: eyeball the app icon + splash + login background + Story List/Lesson + game motion on a device
-  (image reading is down on my side this session).
+- USER: eyeball + tell me to adjust onboarding placement (inputs/ages) via TOP_SPACE/MID_SPACE; check the
+  icon, splash, backgrounds, Story List/Lesson, game motion on a device (image reading is down on my side).
 - USER: generate avatar PNGs (Kofi/Ama/Yaw/Esi/Musa × happy/struggling/excited) → I wire `avatarRes()`.
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.
