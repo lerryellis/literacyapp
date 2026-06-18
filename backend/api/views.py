@@ -1,9 +1,15 @@
+import hashlib
 import secrets
 
 from django.db.models import Avg, Count, Max
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
+from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 
 from .analytics import aggregate_difficult_words, csv_response
@@ -238,4 +244,68 @@ def teacher_sessions_export(request):
     ]
     if request.query_params.get("download") == "csv":
         return csv_response(f"sessions_{teacher.school}", header, rows)
+    return Response([dict(zip(header, row)) for row in rows])
+
+
+# ---------------------------------------------------------------------------
+# Cross-school, anonymized research exports (admin-only)
+# ---------------------------------------------------------------------------
+
+def _learner_ref(student_id):
+    """Stable pseudonym for a student so researchers can link a learner's
+    sessions without exposing their identity."""
+    digest = hashlib.sha1(f"learner:{student_id}".encode()).hexdigest()
+    return "L" + digest[:10]
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
+@permission_classes([IsAdminUser])
+def research_difficult_words(request):
+    """Admin-only: difficult words ranked across ALL schools. ?download=csv."""
+    sessions = Session.objects.all()
+    words = aggregate_difficult_words(sessions)
+    if request.query_params.get("download") == "csv":
+        return csv_response(
+            "research_difficult_words",
+            ["word", "occurrences", "student_count"],
+            [[w["word"], w["occurrences"], w["student_count"]] for w in words],
+        )
+    return Response(
+        {
+            "scope": "all_schools",
+            "total_sessions": sessions.count(),
+            "unique_difficult_words": len(words),
+            "words": words,
+        }
+    )
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
+@permission_classes([IsAdminUser])
+def research_sessions(request):
+    """Admin-only: anonymized session rows across ALL schools, for research.
+    No names or device ids — a stable learner_ref links a learner's sessions.
+    JSON by default; ?download=csv to export."""
+    sessions = (
+        Session.objects.select_related("student", "story").order_by("-created_at")
+    )
+    header = [
+        "session_id", "learner_ref", "school", "age_group", "story",
+        "difficulty_level", "accuracy_percent", "duration_seconds",
+        "difficult_words", "created_at",
+    ]
+    rows = [
+        [
+            s.id, _learner_ref(s.student_id), s.student.school, s.student.age_group,
+            s.story.title, s.story.difficulty_level, s.accuracy_percent,
+            s.duration_seconds,
+            "; ".join(str(w) for w in (s.difficult_words or [])),
+            s.created_at.isoformat(),
+        ]
+        for s in sessions
+    ]
+    if request.query_params.get("download") == "csv":
+        return csv_response("research_sessions", header, rows)
     return Response([dict(zip(header, row)) for row in rows])
