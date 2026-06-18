@@ -768,8 +768,37 @@ needs a device glance.
 
 ---
 
+## Entry 32 — Remove splash, length-based listening window, real avatar art wired
+
+**Splash removed** — `ui/splash/SplashScreen.kt` deleted, `Routes.SPLASH` gone, NavHost start is now
+`ONBOARDING`. (`splash_background.jpg` left in drawable-nodpi, now unused — can delete later.)
+
+**Listening window (gamified by sentence length)** — `GameViewModel`:
+- Replaced the fixed 10 s struggle timer + "stop on first Vosk final" behaviour. Now a tap starts a
+  listening WINDOW = `LISTEN_BASE_MS(6s) + LISTEN_PER_WORD_MS(1.5s) * wordCount`, capped 30 s — recomputed
+  per sentence, so longer lines get more time (5 words ≈ 13.5 s, 12 words ≈ 24 s).
+- Heard segments now ACCUMULATE in a buffer across the window (Vosk finals appended), so pausing
+  mid-sentence no longer erases earlier words; confidence/highlight use the combined text.
+- Grades once per sentence on stop (window elapsed or mic tapped again); `resetSentenceListening()` clears
+  buffer/guards/timers on advance. Struggling face shows only after 60% of the window with nothing heard.
+
+**Avatar art wired** (user added the PNGs):
+- Renamed the dropped files (invalid CamelCase names broke the build) to a consistent scheme:
+  `kofi/ama/yaw _ happy/struggling/excited.png` in res/drawable. Moved the stray `avatars*.png` sheets to
+  `branding/avatars/`.
+- `ReadingBuddy` now resolves `<character>_<expression>` via `resources.getIdentifier` and renders the
+  real `Image` (bob/pop animation kept); falls back to the emoji face for characters without art yet
+  (Esi/Musa). Expression: excited ≥70%, struggling, else happy.
+- Verified live: game screen `content-desc` = "Yaw, happy" → real art rendering, no crash.
+
+**Build status:** `./gradlew assembleDebug` -> BUILD SUCCESSFUL; verified on emulator.
+
+---
+
 ## Next up
-- USER: eyeball + tell me to adjust onboarding placement (inputs/ages) via TOP_SPACE/MID_SPACE; check the
-  icon, splash, backgrounds, Story List/Lesson, game motion on a device (image reading is down on my side).
+- USER: add Esi (14-15) + Musa (16-18) avatar art (named `esi_happy.png` etc.) — auto-wires, no code change.
+- USER: eyeball onboarding placement (TOP_SPACE/MID_SPACE), backgrounds, icon, avatars, game motion on a
+  device (image reading is down on my side); tune listening window if still too short/long.
+- **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.
 - USER: generate avatar PNGs (Kofi/Ama/Yaw/Esi/Musa × happy/struggling/excited) → I wire `avatarRes()`.
 - **Voice accuracy test (user-only):** physical phone, read aloud, confirm non-zero `accuracy_percent`.

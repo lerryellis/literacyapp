@@ -10,7 +10,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import ayola.literacyapp.game.ui.onboarding.OnboardingScreen
 import ayola.literacyapp.game.ui.onboarding.OnboardingViewModel
-import ayola.literacyapp.game.ui.splash.SplashScreen
 import ayola.literacyapp.game.ui.game.GameScreen
 import ayola.literacyapp.game.ui.game.GameViewModel
 import ayola.literacyapp.game.ui.lesson.LessonScreen
@@ -21,7 +20,6 @@ import ayola.literacyapp.game.utils.SessionManager
 import ayola.literacyapp.game.utils.SpeechRecognizerManager
 
 object Routes {
-    const val SPLASH = "splash"
     const val ONBOARDING = "onboarding"
     const val STORY_LIST = "story_list"
     const val GAME = "game/{storyId}"
@@ -36,18 +34,8 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = Routes.SPLASH
+        startDestination = Routes.ONBOARDING
     ) {
-        composable(Routes.SPLASH) {
-            SplashScreen(
-                onTimeout = {
-                    navController.navigate(Routes.ONBOARDING) {
-                        popUpTo(Routes.SPLASH) { inclusive = true }
-                    }
-                }
-            )
-        }
-
         composable(Routes.ONBOARDING) {
             val context = LocalContext.current
             val viewModel: OnboardingViewModel = viewModel(

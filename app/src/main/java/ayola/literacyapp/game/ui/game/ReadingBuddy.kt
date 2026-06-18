@@ -10,6 +10,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -24,37 +25,40 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ayola.literacyapp.game.ui.theme.Good
 import ayola.literacyapp.game.ui.theme.Warn
 
 /**
- * A friendly emoji "reading buddy" that reacts live to the child's progress:
- *   😄 doing great (≥70%) · 🤔 struggling · 👂 listening · 😊 getting close (≥50%) · 🙂 idle.
- * It bobs gently while listening and pops bigger when the child is reading well.
- *
- * PLACEHOLDER for real character art. To swap in the generated PNGs (Kofi/Ama/…):
- *   1) drop e.g. kofi_happy/kofi_pensive/kofi_excited.png into res/drawable/
- *   2) add: @DrawableRes fun avatarRes(character: String, expression: Expression): Int { ... }
- *   3) replace the Text(emoji) below with
- *      Image(painterResource(avatarRes(characterName, expression)), contentDescription = characterName)
- * The reactive STATE (confidence / isListening / isStruggling) is already computed here, so the
- * art swap is purely visual.
+ * A reactive reading buddy that responds to the child's live progress.
+ * Renders the age-mapped character art (`<character>_<happy|struggling|excited>.png` in res/drawable)
+ * when available; falls back to an emoji face for characters whose art hasn't been added yet.
+ * Bobs gently while reading and pops bigger when doing well.
  */
 @Composable
 fun ReadingBuddy(
     confidence: Float,
     isListening: Boolean,
     isStruggling: Boolean = false,
+    characterName: String = "Kofi",
     modifier: Modifier = Modifier,
 ) {
-    val emoji = when {
-        confidence >= 0.70f -> "😄"
-        isStruggling -> "🤔"
-        isListening -> "👂"
-        confidence >= 0.50f -> "😊"
-        else -> "🙂"
+    val expression = when {
+        confidence >= 0.70f -> "excited"
+        isStruggling -> "struggling"
+        else -> "happy"
+    }
+
+    // Resolve "<character>_<expression>" -> drawable id at runtime (0 if that art isn't present).
+    val context = LocalContext.current
+    val resId = remember(characterName, expression) {
+        context.resources.getIdentifier(
+            "${characterName.lowercase()}_$expression", "drawable", context.packageName
+        )
     }
 
     val infinite = rememberInfiniteTransition(label = "buddy")
@@ -73,32 +77,46 @@ fun ReadingBuddy(
         label = "pop"
     )
 
-    val tint = when {
-        confidence >= 0.70f -> Good.copy(alpha = 0.18f)
-        isStruggling -> Warn.copy(alpha = 0.18f)
-        isListening -> MaterialTheme.colorScheme.primaryContainer
-        else -> MaterialTheme.colorScheme.surfaceVariant
-    }
+    val animatedModifier = modifier
+        .size(76.dp)
+        .graphicsLayer {
+            translationY = bob
+            scaleX = pop
+            scaleY = pop
+        }
 
-    Box(
-        modifier = modifier
-            .size(72.dp)
-            .graphicsLayer {
-                translationY = bob
-                scaleX = pop
-                scaleY = pop
-            }
-            .clip(CircleShape)
-            .background(tint),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(emoji, fontSize = 38.sp)
+    if (resId != 0) {
+        Image(
+            painter = painterResource(resId),
+            contentDescription = "$characterName, $expression",
+            contentScale = ContentScale.Fit,
+            modifier = animatedModifier
+        )
+    } else {
+        // Emoji fallback (e.g. Esi / Musa until their art is added).
+        val emoji = when (expression) {
+            "excited" -> "😄"
+            "struggling" -> "🤔"
+            else -> if (isListening) "👂" else "🙂"
+        }
+        val tint = when {
+            confidence >= 0.70f -> Good.copy(alpha = 0.18f)
+            isStruggling -> Warn.copy(alpha = 0.18f)
+            isListening -> MaterialTheme.colorScheme.primaryContainer
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        }
+        Box(
+            modifier = animatedModifier.clip(CircleShape).background(tint),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(emoji, fontSize = 38.sp)
+        }
     }
 }
 
 /**
- * Returns a function that plays a short success chime, using the system ToneGenerator
- * (no sound asset required). Released automatically when the composable leaves.
+ * Returns a function that plays a short success chime via the system ToneGenerator (no audio asset).
+ * Released automatically when the composable leaves.
  */
 @Composable
 fun rememberDing(): () -> Unit {

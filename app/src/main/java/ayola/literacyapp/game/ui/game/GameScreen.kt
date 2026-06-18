@@ -187,7 +187,8 @@ fun GameScreen(
                             ReadingBuddy(
                                 confidence = state.matchConfidence,
                                 isListening = state.isListening,
-                                isStruggling = state.isStruggling
+                                isStruggling = state.isStruggling,
+                                characterName = state.characterName
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(

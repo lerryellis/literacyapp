@@ -49,10 +49,14 @@ class GameViewModel(
     private var sentencesEvaluated: Int = 0
     private val sessionDifficultWords = linkedSetOf<String>()
 
-    // Guards against processing the same Vosk final result more than once.
+    // Accumulates Vosk's finalized segments across one listening window, so the child can pause
+    // mid-sentence without the recognized words being lost.
+    private val heardBuffer = StringBuilder()
     private var lastEvaluatedResult: String? = null
+    private var sentenceGraded = false
 
-    // Flips the buddy to a "struggling" expression after prolonged silence while listening.
+    // Auto-stops listening after a length-based window; flips the buddy to "struggling" on silence.
+    private var listenJob: Job? = null
     private var struggleJob: Job? = null
 
     init {
@@ -69,42 +73,32 @@ class GameViewModel(
         }
     }
 
-    /** Mirror the recognizer's state into GameState and react to final results. */
+    /** Mirror the recognizer's state into GameState, accumulating heard words across the window. */
     private fun observeSpeech() {
         viewModelScope.launch {
             speechManager.state.collect { speech ->
-                // Live "what we heard" = the final result if present, else the in-progress partial.
-                val heard = speech.resultText.ifBlank { speech.partialText }
-                val expected = currentExpectedSentence()
-                val liveConfidence = if (expected != null) wordMatchRatio(heard, expected) else 0f
+                // Append each newly-finalized segment so pauses don't erase earlier words.
+                val result = speech.resultText
+                if (result.isNotBlank() && result != lastEvaluatedResult) {
+                    lastEvaluatedResult = result
+                    if (heardBuffer.isNotEmpty()) heardBuffer.append(' ')
+                    heardBuffer.append(result)
+                }
 
-                // "Struggling" = mic on but nothing recognized yet; cleared the moment we hear words.
-                val canStruggle = speech.isListening && heard.isBlank()
+                val combined = (heardBuffer.toString() + " " + speech.partialText).trim()
+                val expected = currentExpectedSentence()
+                val liveConfidence = if (expected != null) wordMatchRatio(combined, expected) else 0f
+
                 _state.value = _state.value.copy(
                     isSpeechEngineReady = speech.isReady,
                     isListening = speech.isListening,
                     partialText = speech.partialText,
-                    heardText = heard,
+                    heardText = combined,
                     matchConfidence = liveConfidence,
-                    isStruggling = if (canStruggle) _state.value.isStruggling else false,
+                    // Clear the struggling face as soon as we actually hear something.
+                    isStruggling = if (combined.isBlank()) _state.value.isStruggling else false,
                     error = speech.error ?: _state.value.error
                 )
-                if (canStruggle) {
-                    if (struggleJob?.isActive != true) {
-                        struggleJob = viewModelScope.launch {
-                            delay(STRUGGLE_DELAY_MS)
-                            _state.value = _state.value.copy(isStruggling = true)
-                        }
-                    }
-                } else {
-                    struggleJob?.cancel()
-                }
-
-                val result = speech.resultText
-                if (result.isNotBlank() && result != lastEvaluatedResult) {
-                    lastEvaluatedResult = result
-                    onSentenceRecognized(result)
-                }
             }
         }
     }
@@ -123,6 +117,7 @@ class GameViewModel(
                         _state.value = _state.value.copy(error = "We couldn't find this story. Please go back and try again.")
                     else -> {
                         startTimeMillis = System.currentTimeMillis()
+                        resetSentenceListening()
                         // Preserve the engine-ready flag we may already have received.
                         _state.value = _state.value.copy(
                             story = story,
@@ -142,22 +137,63 @@ class GameViewModel(
     fun onMicPressed() {
         if (!_state.value.isSpeechEngineReady) return
         if (_state.value.isListening) {
-            speechManager.stopListening()
-        } else {
-            lastEvaluatedResult = null
-            speechManager.startListening()
+            stopListeningAndGrade()
+            return
+        }
+
+        // Fresh listening session for this sentence.
+        heardBuffer.clear()
+        lastEvaluatedResult = null
+        _state.value = _state.value.copy(heardText = "", matchConfidence = 0f, isStruggling = false)
+        speechManager.startListening()
+
+        // Listening window scales with how much there is to read (longer sentence -> more time).
+        val window = listeningWindowMs()
+        listenJob?.cancel()
+        listenJob = viewModelScope.launch {
+            delay(window)
+            stopListeningAndGrade()
+        }
+        // Supportive "struggling" face only if nothing is heard well into the window.
+        struggleJob?.cancel()
+        struggleJob = viewModelScope.launch {
+            delay((window * 3) / 5)
+            if (heardBuffer.isBlank() && _state.value.partialText.isBlank()) {
+                _state.value = _state.value.copy(isStruggling = true)
+            }
         }
     }
 
     /**
-     * A full utterance came back from Vosk: grade it and stop listening, but DO NOT auto-advance —
-     * the child taps "Next" when they're ready (early readers pause unpredictably).
+     * Listening window for the current sentence: a base time plus extra per word, capped.
+     * Recomputed each time the child starts a sentence, so longer sentences get an adequate window.
      */
-    private fun onSentenceRecognized(spokenText: String) {
-        val story = _state.value.story ?: return
-        val expected = story.getSentences().getOrNull(_state.value.currentSentenceIndex) ?: return
-        evaluateReading(spokenText, expected)
+    private fun listeningWindowMs(): Long {
+        val words = currentExpectedSentence()?.let { normalize(it).size } ?: 0
+        return (LISTEN_BASE_MS + LISTEN_PER_WORD_MS * words).coerceAtMost(LISTEN_MAX_MS)
+    }
+
+    /** Stop the mic and grade the whole accumulated read once per sentence. Does NOT auto-advance. */
+    private fun stopListeningAndGrade() {
+        listenJob?.cancel()
+        struggleJob?.cancel()
         speechManager.stopListening()
+        val expected = currentExpectedSentence()
+        val heard = _state.value.heardText
+        if (expected != null && heard.isNotBlank() && !sentenceGraded) {
+            sentenceGraded = true
+            evaluateReading(heard, expected)
+        }
+        _state.value = _state.value.copy(isListening = false, isStruggling = false)
+    }
+
+    /** Clears per-sentence listening state (buffer, grading guard, timers). */
+    private fun resetSentenceListening() {
+        listenJob?.cancel()
+        struggleJob?.cancel()
+        heardBuffer.clear()
+        lastEvaluatedResult = null
+        sentenceGraded = false
     }
 
     /**
@@ -198,8 +234,7 @@ class GameViewModel(
 
         // Reset listening state so the next sentence starts fresh.
         speechManager.stopListening()
-        lastEvaluatedResult = null
-        struggleJob?.cancel()
+        resetSentenceListening()
 
         if (nextIndex >= sentenceCount) {
             val averageAccuracy = if (sentencesEvaluated > 0) accuracySum / sentencesEvaluated else 0.0
@@ -267,12 +302,16 @@ class GameViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        listenJob?.cancel()
         struggleJob?.cancel()
         speechManager.destroy()
     }
 
     companion object {
-        private const val STRUGGLE_DELAY_MS = 10_000L
+        // Listening window = base + per-word, capped. A 5-word line ≈ 13.5s; a 12-word line ≈ 24s.
+        private const val LISTEN_BASE_MS = 6_000L
+        private const val LISTEN_PER_WORD_MS = 1_500L
+        private const val LISTEN_MAX_MS = 30_000L
 
         fun factory(
             sessionManager: SessionManager,
