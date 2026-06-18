@@ -71,6 +71,14 @@ class OnboardingViewModel(
         _uiState.value = _uiState.value.copy(error = null)
     }
 
+    /**
+     * Consume the one-time navigation signal so returning to this screen (e.g. via Back from the
+     * story list) doesn't immediately re-navigate forward again.
+     */
+    fun onLoginHandled() {
+        _uiState.value = _uiState.value.copy(loginSuccess = false)
+    }
+
     companion object {
         /** SessionManager needs a Context, so the screen supplies it via this factory. */
         fun factory(sessionManager: SessionManager): ViewModelProvider.Factory =

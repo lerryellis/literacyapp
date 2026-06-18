@@ -55,12 +55,8 @@ fun AppNavigation() {
             )
             OnboardingScreen(
                 viewModel = viewModel,
-                onLoginSuccess = {
-                    navController.navigate(Routes.STORY_LIST) {
-                        // Don't let the child navigate back into onboarding.
-                        popUpTo(Routes.ONBOARDING) { inclusive = true }
-                    }
-                }
+                // Keep onboarding on the back stack so the child can return to age selection.
+                onLoginSuccess = { navController.navigate(Routes.STORY_LIST) }
             )
         }
 
@@ -71,7 +67,8 @@ fun AppNavigation() {
             )
             StoryListScreen(
                 viewModel = viewModel,
-                onStoryClick = { storyId -> navController.navigate(Routes.game(storyId)) }
+                onStoryClick = { storyId -> navController.navigate(Routes.game(storyId)) },
+                onBack = { navController.popBackStack() }
             )
         }
 
