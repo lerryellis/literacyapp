@@ -3,9 +3,39 @@ import json
 from django import forms
 from django.contrib import admin
 from django.db.models import Avg, Count
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 
+from .analytics import aggregate_difficult_words, csv_response
 from .models import Student, Story, Session, Teacher
+
+
+@admin.action(description="Export selected sessions to CSV")
+def export_sessions_csv(modeladmin, request, queryset):
+    queryset = queryset.select_related("student", "story")
+    header = [
+        "session_id", "student", "school", "age_group", "story",
+        "accuracy_percent", "duration_seconds", "difficult_words", "created_at",
+    ]
+    rows = [
+        [
+            s.id, s.student.name, s.student.school, s.student.age_group,
+            s.story.title, s.accuracy_percent, s.duration_seconds,
+            "; ".join(str(w) for w in (s.difficult_words or [])),
+            s.created_at.isoformat(),
+        ]
+        for s in queryset
+    ]
+    return csv_response("sessions_export", header, rows)
+
+
+@admin.action(description="Export difficult-words report (CSV)")
+def export_difficult_words_csv(modeladmin, request, queryset):
+    words = aggregate_difficult_words(queryset)
+    return csv_response(
+        "difficult_words_report",
+        ["word", "occurrences", "student_count"],
+        [[w["word"], w["occurrences"], w["student_count"]] for w in words],
+    )
 
 
 # Age bands the Android app filters by (?age_group=). Keep these in sync with
@@ -127,6 +157,22 @@ class StudentAdmin(admin.ModelAdmin):
     list_filter = ('age_group', 'school')
     search_fields = ('name', 'school', 'device_id')
     ordering = ('-created_at',)
+    actions = ['export_students_csv']
+
+    @admin.action(description='Export selected students to CSV')
+    def export_students_csv(self, request, queryset):
+        queryset = queryset.annotate(
+            _n=Count('sessions'),
+            _avg=Avg('sessions__accuracy_percent'),
+        )
+        header = ['student_id', 'name', 'school', 'age_group', 'device_id',
+                  'sessions_count', 'avg_accuracy', 'created_at']
+        rows = [
+            [s.id, s.name, s.school, s.age_group, s.device_id, s._n,
+             round(s._avg, 1) if s._avg is not None else '', s.created_at.isoformat()]
+            for s in queryset
+        ]
+        return csv_response('students_export', header, rows)
 
     def get_queryset(self, request):
         # Annotate once to avoid an N+1 query per row.
@@ -201,9 +247,10 @@ class SessionAdmin(admin.ModelAdmin):
     )
     list_filter = ('story', 'student__age_group')
     search_fields = ('student__name', 'story__title')
-    readonly_fields = ('difficult_words',)
+    readonly_fields = ('difficult_words', 'difficult_words_detail')
     ordering = ('-created_at',)
     list_select_related = ('student', 'story')
+    actions = [export_sessions_csv, export_difficult_words_csv]
 
     @admin.display(description='Performance')
     def performance_badge(self, obj):
@@ -223,3 +270,16 @@ class SessionAdmin(admin.ModelAdmin):
     def difficult_word_count(self, obj):
         words = obj.difficult_words
         return len(words) if isinstance(words, list) else 0
+
+    @admin.display(description='Difficult words (detail)')
+    def difficult_words_detail(self, obj):
+        words = obj.difficult_words if isinstance(obj.difficult_words, list) else []
+        if not words:
+            return '—'
+        chips = format_html_join(
+            ' ',
+            '<span style="background:#fde2e2; color:#b42318; padding:2px 8px; '
+            'border-radius:10px; margin:2px; display:inline-block;">{}</span>',
+            ((str(w),) for w in words),
+        )
+        return format_html('{}', chips)

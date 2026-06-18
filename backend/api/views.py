@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from .analytics import aggregate_difficult_words, csv_response
 from .models import Session, Story, Student, Teacher
 from .serializers import (
     SessionSerializer,
@@ -155,7 +156,86 @@ def teacher_students(request):
         )
         .order_by("name")
     )
+    if request.query_params.get("download") == "csv":
+        header = [
+            "student_id", "name", "age_group", "device_id",
+            "sessions_count", "avg_accuracy", "last_session_at",
+        ]
+        rows = [
+            [
+                s.id, s.name, s.age_group, s.device_id, s.sessions_count,
+                round(s.avg_accuracy, 1) if s.avg_accuracy is not None else "",
+                s.last_session_at.isoformat() if s.last_session_at else "",
+            ]
+            for s in students
+        ]
+        return csv_response(f"students_{teacher.school}", header, rows)
+
     data = StudentProgressSerializer(students, many=True).data
     return Response(
         {"school": teacher.school, "student_count": len(data), "students": data}
     )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def teacher_difficult_words(request):
+    """Token-authed: difficult words across the teacher's school, ranked by
+    how often learners struggled with them. For the teacher dashboard and
+    research. Add ?format=csv to download."""
+    teacher = _teacher_from_request(request)
+    if teacher is None:
+        return Response(
+            {"detail": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    sessions = Session.objects.filter(student__school__iexact=teacher.school)
+    words = aggregate_difficult_words(sessions)
+    if request.query_params.get("download") == "csv":
+        return csv_response(
+            f"difficult_words_{teacher.school}",
+            ["word", "occurrences", "student_count"],
+            [[w["word"], w["occurrences"], w["student_count"]] for w in words],
+        )
+    return Response(
+        {
+            "school": teacher.school,
+            "total_sessions": sessions.count(),
+            "unique_difficult_words": len(words),
+            "words": words,
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def teacher_sessions_export(request):
+    """Token-authed: raw session rows (incl. difficult words) for the
+    teacher's school, for mining. CSV by default; ?format=json for JSON."""
+    teacher = _teacher_from_request(request)
+    if teacher is None:
+        return Response(
+            {"detail": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    sessions = (
+        Session.objects.filter(student__school__iexact=teacher.school)
+        .select_related("student", "story")
+        .order_by("-created_at")
+    )
+    header = [
+        "session_id", "student", "age_group", "device_id", "story",
+        "accuracy_percent", "duration_seconds", "difficult_words", "created_at",
+    ]
+    rows = [
+        [
+            s.id, s.student.name, s.student.age_group, s.student.device_id,
+            s.story.title, s.accuracy_percent, s.duration_seconds,
+            "; ".join(str(w) for w in (s.difficult_words or [])),
+            s.created_at.isoformat(),
+        ]
+        for s in sessions
+    ]
+    if request.query_params.get("download") == "csv":
+        return csv_response(f"sessions_{teacher.school}", header, rows)
+    return Response([dict(zip(header, row)) for row in rows])
